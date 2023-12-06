@@ -23,6 +23,7 @@ type
          HtmlViewer: THtmlViewer;
          ServiceName: String;
          ServiceIndex: Integer; // For NE services
+         SearchIndex: Integer; // For the search function
          // For Llama.cpp
          llamagguf: Pllama_model;
          Params  : Tllama_context_params;
@@ -86,6 +87,7 @@ preprompt:='A chat between a curious user and BasedGuy. Conversation is smart, s
 endprompt:='BasedGuy: ';
 self.color:=backgroundcolor;
 self.Personality:=TPersonality.Create(preprompt,endprompt);
+self.SearchIndex:=0;
 end;
 
 procedure TChat.terminateRequestThread();

@@ -7,7 +7,7 @@ interface
 uses
   Classes, SysUtils, Forms, Controls, Graphics, Dialogs, Menus, ComCtrls,
   ExtCtrls, fpjson, jsonparser, opensslsockets,OptionsForm,
-  stdctrls, HtmlView,  Generics.Collections,
+  stdctrls, Buttons, HtmlView,  Generics.Collections,
   request,neuroengineapi,Math,llama,chat;
 
 type
@@ -15,6 +15,12 @@ type
 { TForm1 }
 
   TForm1 = class(TForm)
+    BitBtnSearchLeft: TBitBtn;
+    BitBtnSearchRight: TBitBtn;
+    BitBtnSearchClose: TBitBtn;
+    CheckBoxSearchCase: TCheckBox;
+    EditSearch: TEdit;
+    GroupBoxSearch: TGroupBox;
     LabeledEdit1: TLabeledEdit;
     MainMenu1: TMainMenu;
     MenuItem1: TMenuItem;
@@ -25,6 +31,7 @@ type
     MenuItem17: TMenuItem;
     MenuItem18: TMenuItem;
     MenuItem19: TMenuItem;
+    MenuItemFind: TMenuItem;
     MenuItem7: TMenuItem;
     MenuItemOpenAI: TMenuItem;
     MenuItemCustomPersonality: TMenuItem;
@@ -63,18 +70,20 @@ type
     Separator3: TMenuItem;
     Separator4: TMenuItem;
     Separator5: TMenuItem;
-    Splitter1: TSplitter;
-    StatusBar1: TStatusBar;
     Timer1: TTimer;
-    TreeView1: TTreeView;
 
 
     // Simple Chats
     procedure AddNeuroengineChat(ServiceIndex:Integer);
     procedure AddLLamaCPPChat(Model:string);
     procedure AddChatGPTChat(Model:string);
+    procedure BitBtnSearchCloseClick(Sender: TObject);
+    procedure BitBtnSearchLeftClick(Sender: TObject);
+    procedure BitBtnSearchRightClick(Sender: TObject);
     //
     procedure ConnectNeuroengine();
+    procedure EditSearchKeyPress(Sender: TObject; var Key: char);
+    procedure FormKeyDown(Sender: TObject; var Key: Word; Shift: TShiftState);
     procedure FormShow(Sender: TObject);
     procedure Log(str: String);
     procedure AddLLM(LLM: string; serviceIndex: Integer);
@@ -119,7 +128,8 @@ type
     connected:boolean;
     neuroEngines: array of TNeuroengineService;
   public
-
+  const
+   version: String = '0.1 testing';
   end;
 
   TChatTabSheet = class(TTabSheet)
@@ -229,6 +239,24 @@ self.Log('Found '+LogString);
 
 end;
 
+procedure TForm1.EditSearchKeyPress(Sender: TObject; var Key: char);
+begin
+  if (Key = #13) then // Enter key is represented by ASCII value of 13, so check for it here.
+   begin
+   self.BitBtnSearchRight.Click;
+   end
+end;
+
+procedure TForm1.FormKeyDown(Sender: TObject; var Key: Word; Shift: TShiftState);
+begin
+// Handle ctrl+f
+if (ssCtrl in Shift) and (Ord('F')=Key) then
+     begin
+     self.GroupBoxSearch.Visible:=True;
+     self.EditSearch.SetFocus;
+     end;
+end;
+
 procedure TForm1.FormShow(Sender: TObject);
 begin
 
@@ -240,6 +268,7 @@ begin
 
     self.AddNeuroengineChat(-1);
     self.connected:=False;
+    self.KeyPreview:=True;
     //OptionsForm1:=TOptionsForm.Create(self);
 end;
 
@@ -268,8 +297,6 @@ var
   html : Unicodestring;
 begin
 chat.refreshHtml();
-//html := Chat.buildHtmlChat(Chat.outhtml);
-//Chat.HTMLViewer.LoadFromString(html);
 Chat.HTMLViewer.Position:=Chat.HTMLViewer.MaxVertical;
 end;
 
@@ -333,7 +360,8 @@ end;
 
 procedure TForm1.MenuItem16Click(Sender: TObject);
 begin
-
+   self.GroupBoxSearch.Visible:=True;
+   self.EditSearch.SetFocus;
 end;
 
 procedure TForm1.MenuItem5Click(Sender: TObject);
@@ -465,6 +493,41 @@ var
 
   end;
 
+procedure TForm1.BitBtnSearchCloseClick(Sender: TObject);
+var
+    ChatTabSheet: TChatTabSheet;
+begin
+self.GroupBoxSearch.Visible:=False;
+ChatTabSheet:=TChatTabSheet(PageControl1.ActivePage);
+if ChatTabSheet <> nil then
+ ChatTabSheet.Chat.HtmlViewer.CaretPos:=0;
+
+end;
+
+procedure TForm1.BitBtnSearchLeftClick(Sender: TObject);
+var
+    ChatTabSheet: TChatTabSheet;
+begin
+  // Default personality
+  ChatTabSheet:=TChatTabSheet(PageControl1.ActivePage);
+  if ChatTabSheet <> nil then
+     begin
+     ChatTabSheet.Chat.HtmlViewer.FindEx(self.EditSearch.Text,self.CheckBoxSearchCase.Checked,True);
+     end;
+end;
+
+procedure TForm1.BitBtnSearchRightClick(Sender: TObject);
+var
+    ChatTabSheet: TChatTabSheet;
+begin
+  // Default personality
+  ChatTabSheet:=TChatTabSheet(PageControl1.ActivePage);
+  if ChatTabSheet <> nil then
+     begin
+     ChatTabSheet.Chat.HtmlViewer.Find(self.EditSearch.Text,self.CheckBoxSearchCase.Checked);
+     end;
+end;
+
 procedure TForm1.LabeledEdit1Change(Sender: TObject);
 begin
 
@@ -516,7 +579,9 @@ end;
 
 procedure TForm1.MenuItem9Click(Sender: TObject);
 begin
-
+  Log('Neurochat '+self.version+' by @ortegaalfredo');
+  Log('Github: https://github.com/ortegaalfredo/neurochat');
+  Log('Discord: https://discord.gg/raeft3whmn');
 end;
 
 procedure TForm1.MenuItemAssistantPersonalityClick(Sender: TObject);
