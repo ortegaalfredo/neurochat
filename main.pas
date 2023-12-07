@@ -8,7 +8,7 @@ uses
   Classes, SysUtils, Forms, Controls, Graphics, Dialogs, Menus, ComCtrls,
   ExtCtrls, fpjson, jsonparser, opensslsockets,OptionsForm,
   stdctrls, Buttons, HtmlView,  Generics.Collections,
-  request,neuroengineapi,Math,llama,chat;
+  request,neuroengineapi,Math,llama,chat,StrUtils;
 
 type
 
@@ -234,6 +234,7 @@ except
     WriteLn('Error: ', E.Message);
 end;
 self.Log('Found '+LogString);
+Log(self.neuroEngines[0].comment);
 //if TreeView1.Items.Count>0 then
 //   TreeView1.Selected:=TreeView1.Items[0];
 
@@ -282,8 +283,8 @@ begin
 prompt:=#10+endprompt;
 for i:=chat.Count downto 1 do
     begin
-    if (i mod 2)=1 then
-          pre:=#10+'USER: '
+    if StartsStr('USER: ',chat[i-1]) then
+          pre:=#10
     else  pre:=#10+endprompt;
     prompt:=pre+chat[i-1]+prompt;
     end;
@@ -311,7 +312,7 @@ if (Key = #13) then // Enter key is represented by ASCII value of 13, so check f
    Chat:=TChatTabSheet(PageControl1.ActivePage).Chat;
    Chat.outhtml.Add('### User: '+LabeledEdit1.Text);
    Chat.outhtml.Add('AI is typing...');
-   Chat.Chatlines.Add(LabeledEdit1.Text);
+   Chat.Chatlines.Add('USER: '+LabeledEdit1.Text);
    if (Chat.requestThread<>Nil) then // cancel current thread
       Chat.terminateRequestThread();
    // Request thread
@@ -330,7 +331,7 @@ begin
 if (PageControl1.ActivePage=Nil) then
    exit;
 Chat:=TChatTabSheet(PageControl1.ActivePage).Chat;
-Chat.outhtml.Add('`<SYSTEM> '+str+'`');
+Chat.outhtml.Add('<SYSTEM> '+str);
 self.refreshHtml(Chat);
 end;
 

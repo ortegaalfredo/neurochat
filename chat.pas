@@ -5,7 +5,7 @@ unit Chat;
 interface
 
 uses
-  Classes, SysUtils,HtmlView,llama,request,MarkdownProcessor, MarkdownUtils,OptionsForm;
+  Classes, SysUtils,HtmlView,llama,request,MarkdownProcessor, MarkdownUtils,OptionsForm,StrUtils;
 type
      { TPersonality }
    TPersonality = class
@@ -108,16 +108,19 @@ end;
 
 function TChat.buildHtmlChat(chat: Tstrings) : Unicodestring;
 var
-  i,q:Integer;
+  q:Integer;
+  str:String;
 begin
 Result:='';
-i:=0;
 for q:=0 to chat.Count-1 do
     begin
-    i:=1-i;
-    if (i=1) then
+    str:=chat.Strings[q];
+    if StartsStr('### User: ',str) then
         Result:=Result+'<div class="roundedBox">'+md.process(chat.Strings[q])+'</div>'
     else
+      if StartsStr('<SYSTEM>',chat.Strings[q]) then
+          Result:=Result+'<div style="color:#808080;font-size: 12px;">'+chat.Strings[q]+'</div>'
+      else
         Result:=Result+'<div style="border: none; padding: 5px;">'+md.process(chat.Strings[q])+'</div>';
     end;
 Result := '<html><head><meta charset="UTF-8"><style> .roundedBox {background-color: '+color+'; border-radius: 5px; padding: 5px} </style> </head><body style="background-color:white">'+Result+'</body></html>';
