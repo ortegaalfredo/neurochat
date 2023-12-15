@@ -8,7 +8,7 @@ uses
   Classes, SysUtils, Forms, Controls, Graphics, Dialogs, Menus, ComCtrls,
   ExtCtrls, fpjson, jsonparser, opensslsockets,OptionsForm,
   stdctrls, Buttons, HtmlView,  Generics.Collections,
-  request,neuroengineapi,Math,llama,chat,StrUtils;
+  request,neuroengineapi,Math,llama,chat,StrUtils,IniFiles;
 
 type
 
@@ -31,6 +31,7 @@ type
     MenuItem17: TMenuItem;
     MenuItem18: TMenuItem;
     MenuItem19: TMenuItem;
+    MenuItemCloseTab: TMenuItem;
     MenuItemFind: TMenuItem;
     MenuItem7: TMenuItem;
     MenuItemOpenAI: TMenuItem;
@@ -80,9 +81,12 @@ type
     procedure BitBtnSearchCloseClick(Sender: TObject);
     procedure BitBtnSearchLeftClick(Sender: TObject);
     procedure BitBtnSearchRightClick(Sender: TObject);
+    function engineNameToIndex(eName:string): Integer;
+
     //
     procedure ConnectNeuroengine();
     procedure EditSearchKeyPress(Sender: TObject; var Key: char);
+    procedure FormDestroy(Sender: TObject);
     procedure FormKeyDown(Sender: TObject; var Key: Word; Shift: TShiftState);
     procedure FormShow(Sender: TObject);
     procedure Log(str: String);
@@ -98,6 +102,7 @@ type
     procedure MenuItemAssistantPersonalityClick(Sender: TObject);
     procedure MenuItemBasedPersonalityClick(Sender: TObject);
     procedure MenuItemBenderPersonalityClick(Sender: TObject);
+    procedure MenuItemCloseTabClick(Sender: TObject);
     procedure MenuItemCustomPersonalityClick(Sender: TObject);
     procedure MenuItemDefaultPersonalityClick(Sender: TObject);
     procedure MenuItemDonaldPersonalityClick(Sender: TObject);
@@ -201,7 +206,6 @@ self.Log('Connected. Requesting model list...');
 try
   // Parse the regular string as JSON data
   JSONData := GetJSON(RegularStr);
-  writeln(JSONData.AsJSON);
   // Allocate memory for storage
   SetLength(neuroEngines, TJSONArray(JSONData).Count);
 
@@ -231,7 +235,7 @@ try
   JSONData.Free;
 except
   on E: Exception do
-    WriteLn('Error: ', E.Message);
+    log('Error: '+ E.Message);
 end;
 self.Log('Found '+LogString);
 Log(self.neuroEngines[0].comment);
@@ -246,6 +250,105 @@ begin
    begin
    self.BitBtnSearchRight.Click;
    end
+end;
+
+{ Save all tabs on destroy }
+procedure TForm1.FormDestroy(Sender: TObject);
+var
+  Chat: TChat;
+  i: Integer;
+  jsonString:string;
+  f: TFileStream;
+  root:TJSONObject;
+  chatArray: TJSONArray;
+const
+  sFileName = 'neurochat.history';
+begin
+   root := TJSONObject.Create;
+   chatArray := TJSONArray.Create;
+
+   for i:=0 to PageControl1.PageCount-1 do
+       begin
+       Chat:=TChatTabSheet(PageControl1.Page[i]).Chat;
+       chatArray.Add(Chat.toJson)
+       end;
+   root.Add('Chats',chatArray);
+   jsonString:=root.FormatJSON();
+   // Open the file for output (creating if not exists)
+   f := TFileStream.Create(sFileName, fmCreate);
+   try
+     f.Write(PAnsiChar(jsonString)^,Length(jsonString));
+   finally
+    f.Free;
+    root.Free;
+   end;
+end;
+
+
+
+procedure TForm1.FormCreate(Sender: TObject);
+var
+  Fs: TFileStream;
+  P: TJSONParser;
+  J: TJSONData;
+  chatArray: TJSONArray;
+  chatjs:TJSONObject;
+  chat:TChat;
+  i:Integer;
+  NewTabSheet: TChatTabSheet;
+  IniFile: TIniFile;
+  autosave:Boolean;
+const
+  sFileName = 'neurochat.history';
+begin
+self.connected:=False;
+self.KeyPreview:=True;
+IniFile := TIniFile.Create('neuroengine.ini');
+try
+   autosave:=IniFile.ReadBool('Common','autosave',True);
+finally
+  IniFile.Free;
+end;
+//self.AddNeuroengineChat(-1);
+    if (not FileExists(sFileName)) or (not autosave) then
+       self.AddNeuroengineChat(-1)
+    else begin { Load tabs from history file }
+     Fs := TFileStream.Create(sFileName, fmopenRead);
+     try
+       P := TJSONParser.Create(Fs);
+       try
+         J := P.Parse;
+         if Assigned(J) then
+            begin
+            chatArray:= TJSONArray(J.FindPath('Chats'));
+            for I := 0 to chatArray.Count -1 do
+                begin
+                chatjs:=TJSONObject(chatArray[I]);
+                chat:=TChat.FromJSON(chatjs);
+                // Add a new tab sheet to the page control
+                NewTabSheet := TChatTabSheet.Create(PageControl1);
+                NewTabSheet.PageControl:=PageControl1;
+                NewTabSheet.Caption:=chat.ServiceName;
+                NewTabSheet.Tag:=0;
+                // Allocate new ChatStruct
+//                Chat.ServiceIndex:=0;
+                Chat.HtmlViewer := THtmlViewer.Create(NewTabSheet);
+                Chat.HtmlViewer.Parent:=NewTabSheet;
+                Chat.HtmlViewer.ScrollBars:=ssVertical;
+                Chat.HtmlViewer.Align:=TAlign.alClient;
+                NewTabSheet.Chat:=chat;
+                chat.refreshHtml();
+                end
+            end;
+       finally
+//         if Assigned(J) then
+//            J.Free;
+         P.Free;
+         end;
+     finally
+        Fs.Free;
+        end;
+    end;
 end;
 
 procedure TForm1.FormKeyDown(Sender: TObject; var Key: Word; Shift: TShiftState);
@@ -264,15 +367,6 @@ begin
 end;
 
 
-procedure TForm1.FormCreate(Sender: TObject);
-begin
-
-    self.AddNeuroengineChat(-1);
-    self.connected:=False;
-    self.KeyPreview:=True;
-    //OptionsForm1:=TOptionsForm.Create(self);
-end;
-
 // Build airoboros-style chat
 function buildChatPrompt(chat: Tstrings;preprompt:String;endprompt:String) : string;
 var
@@ -283,7 +377,7 @@ begin
 prompt:=#10+endprompt;
 for i:=chat.Count downto 1 do
     begin
-    if StartsStr('USER: ',chat[i-1]) then
+    if StartsStr('User: ',chat[i-1]) then
           pre:=#10
     else  pre:=#10+endprompt;
     prompt:=pre+chat[i-1]+prompt;
@@ -312,7 +406,7 @@ if (Key = #13) then // Enter key is represented by ASCII value of 13, so check f
    Chat:=TChatTabSheet(PageControl1.ActivePage).Chat;
    Chat.outhtml.Add('### User: '+LabeledEdit1.Text);
    Chat.outhtml.Add('AI is typing...');
-   Chat.Chatlines.Add('USER: '+LabeledEdit1.Text);
+   Chat.Chatlines.Add('User: '+LabeledEdit1.Text);
    if (Chat.requestThread<>Nil) then // cancel current thread
       Chat.terminateRequestThread();
    // Request thread
@@ -427,7 +521,7 @@ NewTabSheet.Tag:=ServiceIndex;
 
 // Allocate new ChatStruct
 Chat:= TChat.Create(ServiceName,AIT_Neuroengine);
-Chat.ServiceIndex:=ServiceIndex;
+//Chat.ServiceIndex:=ServiceIndex;
 if ServiceIndex>=0 then
    begin
    Chat.Personality.preprompt:=self.neuroEngines[ServiceIndex].preprompt;
@@ -443,32 +537,49 @@ if ServiceIndex>=0 then
    Log(self.neuroEngines[ServiceIndex].comment);
 end;
 
+procedure LlamaLoadCallback(progress:single; ctx:pointer);cdecl;
+var
+  i:Integer;
+begin
+i:=Round(progress*100) mod 20;
+if (i=0) then
+   Form1.log('Loading...'+IntToStr(Round(progress*100))+'%');
+end;
+
 procedure TForm1.AddLLamaCPPChat(Model:string);
 var
   NewTabSheet: TChatTabSheet;
   Chat: TChat;
+  callback: Tllama_progress_callback;
   begin
-//  Model:='llama-2-7b-chat.Q4_K_M.gguf';
+  // Allocate new ChatStruct
+  Chat:= TChat.Create(Model,AIT_LlamaCPP,'#ffefd1');
+  // Load GGUF
+  SetExceptionMask(GetExceptionMask + [exOverflow,exZeroDivide,exInvalidOp]); // God dammit, llama.cpp
+  llama_backend_init(False);
+  Chat.Params := llama_context_default_params;
+  callback := @LlamaLoadCallback;
+  Chat.Params.progress_callback:=callback;
+  Chat.llamagguf := llama_load_model_from_file(PChar(Model), Chat.Params);
+  if Chat.llamagguf = nil then
+     begin
+     log('Failed to load model '+Model);
+     Chat.Free;
+     exit;
+     //raise Exception.Create('Failed to load model');
+     end;
+
   // Add a new tab sheet to the page control
   NewTabSheet := TChatTabSheet.Create(PageControl1);
   NewTabSheet.PageControl:=PageControl1;
   NewTabSheet.Caption:=ExtractFileName(Model);
 
-  // Allocate new ChatStruct
-  Chat:= TChat.Create(Model,AIT_LlamaCPP,'#ffefd1');
   Chat.HtmlViewer := THtmlViewer.Create(NewTabSheet);
   Chat.HtmlViewer.Parent:=NewTabSheet;
   Chat.HtmlViewer.ScrollBars:=ssVertical;
   Chat.HtmlViewer.Align:=TAlign.alClient;
   NewTabSheet.Chat:=Chat;
   PageControl1.ActivePage:=NewTabSheet;
-  // Load GGUF
-  SetExceptionMask(GetExceptionMask + [exOverflow,exZeroDivide,exInvalidOp]); // God dammit, llama.cpp
-  llama_backend_init(False);
-  Chat.Params := llama_context_default_params;
-  Chat.llamagguf := llama_load_model_from_file(PChar(Model), Chat.Params);
-  if Chat.llamagguf = nil then
-    raise Exception.Create('Failed to load model');
   end;
 
 procedure TForm1.AddChatGPTChat(Model:string);
@@ -627,6 +738,18 @@ if ChatTabSheet <> nil then
 self.Log('Personality set to "Bender"');
 end;
 
+procedure TForm1.MenuItemCloseTabClick(Sender: TObject);
+var
+  ChatTabSheet: TChatTabSheet;
+begin
+if PageControl1.ActivePage <> nil then
+begin
+  // Free the sender of the click
+  ChatTabSheet:= TChatTabSheet(PageControl1.ActivePage);
+  ChatTabSheet.Free;
+end;
+end;
+
 procedure TForm1.MenuItemCustomPersonalityClick(Sender: TObject);
 var
     ChatTabSheet: TChatTabSheet;
@@ -644,9 +767,22 @@ if ChatTabSheet <> nil then
 self.Log('Personality set to "'+pname+'"');
 end;
 
+function TForm1.engineNameToIndex(eName:string): Integer;
+var
+    I:Integer;
+begin
+Result:=-1;
+for I:=0 to length(self.neuroEngines)-1 do
+    begin
+    if self.neuroEngines[I].name=eName then
+     Result:=I;
+    end;
+end;
+
 procedure TForm1.MenuItemDefaultPersonalityClick(Sender: TObject);
 var
     ChatTabSheet: TChatTabSheet;
+    serviceIndex:Integer;
 begin
   // Default personality
   ChatTabSheet:=TChatTabSheet(PageControl1.ActivePage);
@@ -654,10 +790,11 @@ begin
      begin
      if ChatTabSheet.Chat.ServiceType=AIT_Neuroengine then
       begin
-      if ChatTabSheet.Chat.ServiceIndex>=0 then
+      serviceIndex:=self.engineNameToIndex(ChatTabSheet.Chat.ServiceName);
+      if ServiceIndex>=0 then
          begin
-         ChatTabSheet.Chat.Personality.preprompt:=self.neuroEngines[ChatTabSheet.Chat.ServiceIndex].preprompt;
-         ChatTabSheet.Chat.Personality.endprompt:=self.neuroEngines[ChatTabSheet.Chat.ServiceIndex].endprompt;
+         ChatTabSheet.Chat.Personality.preprompt:=self.neuroEngines[ServiceIndex].preprompt;
+         ChatTabSheet.Chat.Personality.endprompt:=self.neuroEngines[ServiceIndex].endprompt;
          end;
       end
      else begin
@@ -785,7 +922,7 @@ begin
 if PageControl1.ActivePage <> nil then
 begin
   // Free the sender of the click
-  ChatTabSheet:=TChatTabSheet(Sender);
+  ChatTabSheet:= TChatTabSheet(Sender);
   ChatTabSheet.Free;
 end;
 end;

@@ -32,12 +32,10 @@ URL := format('https://api.neuroengine.ai/%s',[LLMName]); // Neuroengine endpoin
 RawByteStr := TFPHTTPClient.SimpleFormPost(URL,APIMessage);
 //RegularStr := UTF8Encode(RawByteStr);
 RegularStr := RawByteStr;
-writeln('***'+RegularStr);
 
 try
   // Parse the regular string as JSON data
   JSONData := GetJSON(RegularStr);
-  writeln('RESPUESTA: '+JSONData.AsJSON);
   QueryAPI:=JSONData.AsJSON;
   JSONData.Free;
 except
@@ -105,7 +103,6 @@ begin
                            '"raw" :'+rawString+
                            '}'
                            ,[Prompt,temperature,top_p,top_k,repetition_penalty,max_new_len,seed]);
-     writeln(JSONToSend);
      QueryAI:=QueryAPI(LLMName,JSONToSend);
      JSONData := GetJSON(QueryAI);
      QueryAI:=TJSONObject(JSONData).Find('reply').AsUnicodeString;

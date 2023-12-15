@@ -5,7 +5,9 @@ unit Chat;
 interface
 
 uses
-  Classes, SysUtils,HtmlView,llama,request,MarkdownProcessor, MarkdownUtils,OptionsForm,StrUtils;
+  Classes, SysUtils,HtmlView,llama,request,MarkdownProcessor, MarkdownUtils,OptionsForm,StrUtils,
+  fpjson, jsonparser;
+
 type
      { TPersonality }
    TPersonality = class
@@ -14,6 +16,8 @@ type
      preprompt:String;
      endprompt:String;
      constructor Create(const pprompt:String;const eprompt:String);
+     class function FromJSON(LJSONObject: TJSONObject): TPersonality;
+     function ToJSON: TJSONObject;
    end;
 
      { TChat }
@@ -22,7 +26,6 @@ type
        public
          HtmlViewer: THtmlViewer;
          ServiceName: String;
-         ServiceIndex: Integer; // For NE services
          SearchIndex: Integer; // For the search function
          // For Llama.cpp
          llamagguf: Pllama_model;
@@ -40,6 +43,12 @@ type
          function buildHtmlChat(chat: Tstrings) : Unicodestring;
          procedure refreshHtml();
          procedure refreshHtmlIncremental(partialResponse:UnicodeString);
+         {Utility json functions}
+         function SerializeStringListToJsonArray(stringList: TStringList): TJSONArray;
+         function DeserializeJsonArrayStringToStringList(jsonArray: TJSONArray): TStringList;
+         {Save and load object as JSON}
+         function toJson():TJSONObject;
+         class function FromJSON(LJSONObject: TJSONObject): TChat;
        end;
 
      {TNeuroengineService}
@@ -65,6 +74,36 @@ begin
   self.name:='Assistant';
 end;
 
+function TPersonality.ToJSON: TJSONObject;
+var
+  LJSONObject: TJSONObject;
+begin
+  LJSONObject := TJSONObject.Create;
+  try
+    LJSONObject.Add('name', name);
+    LJSONObject.Add('preprompt', preprompt);
+    LJSONObject.Add('endprompt', endprompt);
+    Result := LJSONObject;//.FormatJSON();
+  finally
+//    LJSONObject.Free;
+  end;
+end;
+
+class function TPersonality.FromJSON(LJSONObject: TJSONObject): TPersonality;
+begin
+  Result := TPersonality.Create('', ''); // Default values, you may adjust as needed
+  try
+    //LJSONObject := GetJSON(json) as TJSONObject;
+
+    if Assigned(LJSONObject) then
+    begin
+      Result.Name := LJSONObject.Get('name', Result.Name);
+      Result.preprompt := LJSONObject.Get('preprompt', Result.preprompt);
+      Result.endprompt := LJSONObject.Get('endprompt', Result.endprompt);
+    end;
+  finally
+  end;
+end;
 
 
 { TChat }
@@ -88,6 +127,65 @@ endprompt:='BasedGuy: ';
 self.color:=backgroundcolor;
 self.Personality:=TPersonality.Create(preprompt,endprompt);
 self.SearchIndex:=0;
+end;
+
+function TChat.toJson:TJSONObject;
+var
+  LJSONObject,perso: TJSONObject;
+  chats:TJSONArray;
+begin
+LJSONObject := TJSONObject.Create;
+try
+  perso:=self.Personality.ToJSON;
+  chats:=self.SerializeStringListToJsonArray(self.Chatlines);
+  LJSONObject.Add('Name', self.ServiceName);
+  LJSONObject.Add('type',Ord(self.ServiceType));
+  LJSONObject.Add('color',self.color);
+  LJSONObject.Add('personality', perso);
+  LJSONObject.Add('chatlines', chats);
+  Result := LJSONObject;//.FormatJSON();
+finally
+end;
+end;
+
+class function TChat.FromJSON(LJSONObject: TJSONObject): TChat;
+var
+  Name,cColor,line:String;
+  c,I:Integer;
+  ctype: AIType;
+  jPersonality: TJSONObject;
+  jChatlines: TJSONArray;
+  sChatlines:TStringList;
+begin
+  Result:=nil;
+  jChatlines:=nil;
+  jPersonality:=nil;
+  Name := LJSONObject.Get('Name', '');
+  cColor := LJSONObject.Get('color', '');
+  C := LJSONObject.Get('type', 0);
+  jPersonality := LJSONObject.Get('personality',jPersonality);
+  jChatlines := LJSONObject.Get('chatlines',jChatlines);
+  if jPersonality=nil then
+      exit;
+    case C of
+      1: ctype:=AIT_Neuroengine;
+      2: ctype:=AIT_LlamaCPP;
+      3: ctype:=AIT_ChatGPT;
+      else
+        exit;
+    end;
+  Result:=TChat.Create(Name,ctype,cColor);
+  Result.Personality:=TPersonality.FromJSON(jPersonality);
+  sChatlines:=Result.DeserializeJsonArrayStringToStringList(jChatlines);
+  Result.Chatlines.AddStrings(sChatlines);
+  for I:=0 to sChatlines.Count-1 do
+      begin
+      line:=sChatlines[I];
+      if StartsStr('User: ',line) then
+           Result.outhtml.Add('### '+ line)
+      else Result.outhtml.Add(line);
+      end;
+  sChatlines.Free;
 end;
 
 procedure TChat.terminateRequestThread();
@@ -141,6 +239,46 @@ outhtml.Add(partialResponse);
 html := buildHtmlChat(outhtml);
 outhtml.Delete(outhtml.Count-1);
 HTMLViewer.LoadFromString(html);
+end;
+
+function TChat.SerializeStringListToJsonArray(stringList: TStringList): TJSONArray;
+var
+  jsonString: TJSONStringType;
+  jsonArray: TJSONArray;
+  i:Integer;
+begin
+  // Create a JSON array
+  jsonArray := TJSONArray.Create;
+
+  try
+    // Convert the TStringList to a JSON array
+    for i:=0 to stringList.Count-1 do
+        jsonArray.Add(stringList[i]);
+    Result := jsonArray;
+  finally
+    // Free the JSON array
+//    jsonArray.Free;
+  end;
+end;
+
+
+function TChat.DeserializeJsonArrayStringToStringList(jsonArray: TJSONArray): TStringList;
+var
+  I:Integer;
+begin
+  Result := TStringList.Create;
+
+  try
+    if Assigned(jsonArray) then
+    begin
+      // Populate the TStringList with the strings from the JSON array
+      for I := 0 to jsonArray.Count -1 do
+            Result.Add(jsonArray.Items[I].AsString);
+    end;
+  finally
+    // Free the JSON array
+    jsonArray.Free;
+  end;
 end;
 
 end.
