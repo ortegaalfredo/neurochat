@@ -37,6 +37,7 @@ type
          outhtml: TStringList;
          color:String; // Color of the chat
          requestThread: TRequestThread;
+         UpdateTokenCallback: TUpdate_token_callback;
          constructor Create(const AServiceName: string; sAItype: AIType;backgroundcolor:String = '#EBF5FB');
          procedure terminateRequestThread();
          procedure createRequestThread();
@@ -127,6 +128,7 @@ endprompt:='BasedGuy: ';
 self.color:=backgroundcolor;
 self.Personality:=TPersonality.Create(preprompt,endprompt);
 self.SearchIndex:=0;
+self.UpdateTokenCallback:=nil;
 end;
 
 function TChat.toJson:TJSONObject;
@@ -201,6 +203,7 @@ Case self.ServiceType of
    AIT_LlamaCPP: requestThread:=TllamaCPPThread.Create(ServiceName,self.llamagguf,self.Params);
    AIT_ChatGPT:  requestThread:=TChatGPTThread.Create(ServiceName,settings.LabeledEditApiKey.Text);
  end;
+requestThread.UpdateCallback:=self.UpdateTokenCallback;
 end;
 
 

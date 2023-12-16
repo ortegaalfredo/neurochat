@@ -17,12 +17,16 @@ type
 
 
 type
+
+TUpdate_token_callback = procedure (message:string);
+
 // Handle Neuroengine.ai requests
 TRequestThread = class(TThread)
 protected
   procedure Execute; override;
 public
   ModelName: string;
+  UpdateCallback: TUpdate_token_callback;
   PromptToAnswer: Unicodestring;
   Response: Unicodestring;
   constructor Create(Service: string);
@@ -229,12 +233,14 @@ begin
             else begin
                   TokenStr:=llama_token_get_text(Model, token_id);
                   TokenStr:=StringReplace(TokenStr,'▁',' ',[rfReplaceAll]);
-                  writeln(TokenStr);
                   if LowerCase(TokenStr)='user' then
                       break;
                   if token_id = llama_token_nl(Model) then
                        answer:=answer+#10
                   else answer:=answer+TokenStr;
+                  {Update gui token by token}
+                  if self.UpdateCallback <> nil then
+                     self.UpdateCallback(answer);
                   EmbdInp.Add(token_id);
                   C:=1;
                   end;
@@ -252,6 +258,7 @@ constructor TRequestThread.Create(Service: string);
 begin
   inherited Create(True); // Create the thread suspended
   self.ModelName:=Service;
+  self.UpdateCallback:=nil;
 end;
 
 function UnicodeToEscape(const UnicodeStr: string): AnsiString;
@@ -300,7 +307,7 @@ begin
      begin
      answer:=Copy(answer,p+Length(PromptToAnswer),Length(answer));
      answer:=Trim(answer);
-     p:=PosEx('USER:',answer);
+     p:=PosEx('user:',LowerCase(answer));
      if (p>0) then
         Delete(answer,p-2,Length(answer));
      Response:=Trim(answer);

@@ -1266,7 +1266,7 @@ object Form1: TForm1
       end
       object MenuItemBenderPersonality: TMenuItem
         AutoCheck = True
-        Caption = 'Bender'
+        Caption = 'Coder'
         GroupIndex = 1
         RadioItem = True
         OnClick = MenuItemBenderPersonalityClick
