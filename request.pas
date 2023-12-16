@@ -33,7 +33,7 @@ TllamaCPPThread = class(TRequestThread)
 private
   Ctx     : Pllama_context;
   Model   : Pllama_model;
-  Params  : Tllama_context_params;
+  Params  : Tllama_model_params;
   n_vocab: longint;
   candidates: array of Tllama_token_data;
   candidates_p: Tllama_token_data_array;
@@ -49,7 +49,7 @@ private
 protected
   procedure Execute; override;
 public
-  constructor Create(ModelPath:string;llm: Pllama_model; Prams: Tllama_context_params);
+  constructor Create(ModelPath:string;llm: Pllama_model; Prams: Tllama_model_params);
 //  function Load():Boolean;
  end;
 
@@ -142,7 +142,7 @@ begin
 end;
 
 {TllamaCPPThread}
-constructor TllamaCPPThread.Create(ModelPath:string;llm: Pllama_model; Prams: Tllama_context_params);
+constructor TllamaCPPThread.Create(ModelPath:string;llm: Pllama_model; Prams: Tllama_model_params);
 begin
   inherited Create(ModelPath); // Create the thread suspended
 //  self.Loaded:=False;
@@ -165,6 +165,7 @@ var
   TYPICAL_P: Single;
   TFS_Z: Single;
   TEMP: Single;
+  ctxParams:Tllama_context_params;
 begin
   N_THREADS:=StrToIntDef(Settings.ComboBoxThreads.Text,4);
   TOP_K:= StrToIntDef(Settings.LabeledEditK.Text,40);
@@ -174,23 +175,27 @@ begin
   TEMP:= StrToFloatDef(Settings.LabeledEditTemperature.Text, 1.0);
   SetExceptionMask(GetExceptionMask + [exOverflow,exZeroDivide,exInvalidOp]); // God dammit, llama.cpp
   llama_backend_init(False);
-  Ctx:=llama_new_context_with_model(Model,Params);
+  ctxParams:=llama_context_default_params;
+  ctxParams.n_threads:=N_THREADS;
+  ctxParams.n_threads_batch:=N_THREADS;
+  Ctx:=llama_new_context_with_model(Model,ctxParams);
   max_context_size     := llama_n_ctx(ctx);
   max_tokens_list_size := max_context_size - 4;
   n_gen := Min(StrToIntDef(Settings.LabeledEditMaxLen.Text,1024), max_context_size);
   S := PromptToAnswer;
   // tokenize the prompt
   EmbdInp.Count := Length(S) + 1;
-  C := llama_tokenize(Ctx, PChar(S), Length(S), EmbdInp.Data, EmbdInp.Count, False);
+  C := llama_tokenize(Model, PChar(S), Length(S), EmbdInp.Data, EmbdInp.Count, False,False);
   candidates:=[];
       // main loop
     while llama_get_kv_cache_token_count(ctx) < n_gen do
         begin
-        llama_eval(Ctx, EmbdInp.Data, C, llama_get_kv_cache_token_count(ctx), N_THREADS);
+
+        llama_eval(Ctx, EmbdInp.Data, C, llama_get_kv_cache_token_count(ctx));
         EmbdInp.Clear;
 
         // sample the next token
-        n_vocab := llama_n_vocab(ctx);
+        n_vocab := llama_n_vocab(Model);
         SetLength(candidates, n_vocab);
         logits := llama_get_logits(ctx);
 
@@ -216,17 +221,18 @@ begin
         token_id:=llama_sample_token(ctx, @candidates_p);
         // Alternative greedy sampling
   //      token_id:=llama_sample_token_greedy(ctx, @candidates_p);
-        if token_id = llama_token_eos(ctx) then
+        if token_id = llama_token_eos(Model) then
             begin
               Write(' <EOS>');
               break;
             end
             else begin
-                  TokenStr:=llama_token_get_text(Ctx, token_id);
+                  TokenStr:=llama_token_get_text(Model, token_id);
                   TokenStr:=StringReplace(TokenStr,'▁',' ',[rfReplaceAll]);
-                  if TokenStr='USER' then
+                  writeln(TokenStr);
+                  if LowerCase(TokenStr)='user' then
                       break;
-                  if token_id = llama_token_nl(ctx) then
+                  if token_id = llama_token_nl(Model) then
                        answer:=answer+#10
                   else answer:=answer+TokenStr;
                   EmbdInp.Add(token_id);

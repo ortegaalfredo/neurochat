@@ -96,6 +96,7 @@ interface
     Tint64_t = clong;
     Tuint64_t = culong;
     Tuint8_t = cuchar;
+    Tint8_t = cchar;
 
     Tllama_token_data_array = record
         data : ^Tllama_token_data;
@@ -106,30 +107,61 @@ interface
 
     Tllama_progress_callback = procedure (progress:single; ctx:pointer);cdecl;
 
+    Tllama_model_kv_override_type = (LLAMA_KV_OVERRIDE_INT,LLAMA_KV_OVERRIDE_FLOAT,
+      LLAMA_KV_OVERRIDE_BOOL);
+    Taaa = record
+        case longint of
+          0 : ( int_value : longint );
+          1 : ( float_value : Tdouble );
+          2 : ( bool_value : Tbool );
+        end;
+    Tllama_model_kv_override = record
+        key : array[0..127] of char;
+        tag : Tllama_model_kv_override_type;
+        aa: Taaa;
+      end;
+    Pllama_model_kv_override = ^Tllama_model_kv_override;
+
+
+    Tllama_model_params = record
+        n_gpu_layers : Tint32_t;
+        main_gpu : Tint32_t;
+        tensor_split : ^single;
+        progress_callback : Tllama_progress_callback;
+        progress_callback_user_data : pointer;
+        kv_overrides:Pllama_model_kv_override;
+        vocab_only : TBool;
+        use_mmap : TBool;
+        use_mlock : TBool;
+          end;
+
     Tllama_context_params = record
         seed : Tuint32_t;
         n_ctx : Tint32_t;
         n_batch : Tint32_t;
-        n_gpu_layers : Tint32_t;
-        main_gpu : Tint32_t;
-        tensor_split : ^single;
+        n_threads : Tint32_t;
+        n_threads_batch : Tint32_t;
+        rope_scaling_type : Tint8_t;
         rope_freq_base : single;
         rope_freq_scale : single;
-        progress_callback : Tllama_progress_callback;
-        progress_callback_user_data : pointer;
-        low_vram : TBool;
+        yarn_ext_factor: single;  // YaRN extrapolation mix factor, negative = from model
+        yarn_attn_factor: single; // YaRN magnitude scaling factor
+        yarn_beta_fast: single;   // YaRN low correction dim
+        yarn_beta_slow: single;   // YaRN high correction dim
+        yarn_orig_ctx: Tuint32_t;    // YaRN original context size
+
+        type_k: Tuint32_t;    // YaRN original context size
+        type_v: Tuint32_t;    // YaRN original context size
+
         mul_mat_q : TBool;
-        f16_kv : TBool;
         logits_all : TBool;
-        vocab_only : TBool;
-        use_mmap : TBool;
-        use_mlock : TBool;
         embedding : TBool;
+        offload_kqv : TBool;
       end;
 
 
 
-    Tllama_log_callback = procedure (level:Tllama_log_level; text:Pchar; user_data:pointer);cdecl;
+    Tllama_log_callback = procedure (level:Tllama_log_level; text:Pchar; user_data:pointer);LLAMACALL;
 
     Tllama_model_quantize_params = record
         nthread : longint;
@@ -166,12 +198,14 @@ interface
 
   function llama_context_default_params: Tllama_context_params; LLAMACALL;external External_library name 'llama_context_default_params';
 
+  function llama_model_default_params:   Tllama_model_params;   LLAMACALL;external External_library name 'llama_model_default_params';
+
   procedure llama_backend_init(numa:TBool);LLAMACALL;external External_library name 'llama_backend_init';
 
   procedure llama_backend_free;LLAMACALL;external External_library name 'llama_backend_free';
 
 
-  function llama_load_model_from_file(path_model:Pchar; params:Tllama_context_params):Pllama_model;LLAMACALL;external External_library name 'llama_load_model_from_file';
+  function llama_load_model_from_file(path_model:Pchar; params:Tllama_model_params):Pllama_model;LLAMACALL;external External_library name 'llama_load_model_from_file';
 
   procedure llama_free_model(model:Pllama_model);LLAMACALL;external External_library name 'llama_free_model';
 
@@ -188,7 +222,7 @@ interface
   function llama_mlock_supported:TBool;LLAMACALL;external External_library name 'llama_mlock_supported';
 
 
-  function llama_n_vocab(ctx:Pllama_context):longint;LLAMACALL;external External_library name 'llama_n_vocab';
+  function llama_n_vocab(ctx:Pllama_model):longint;LLAMACALL;external External_library name 'llama_n_vocab';
 
 
   function llama_n_ctx(ctx:Pllama_context):longint;LLAMACALL;external External_library name 'llama_n_ctx';
@@ -245,7 +279,7 @@ interface
   function llama_save_session_file(ctx:Pllama_context; path_session:Pchar; var tokens:Tllama_token; n_token_count:Tsize_t):TBool;LLAMACALL;external External_library name 'llama_save_session_file';
 
 
-  function llama_eval(ctx:Pllama_context; tokens:Pllama_token; n_tokens:longint; n_past:longint; n_threads:longint):longint;LLAMACALL;external External_library name 'llama_eval';
+  function llama_eval(ctx:Pllama_context; tokens:Pllama_token; n_tokens:longint; n_past:longint):longint;LLAMACALL;external External_library name 'llama_eval';
 
 
   function llama_eval_embd(ctx:Pllama_context; var embd:single; n_tokens:longint; n_past:longint; n_threads:longint):longint;LLAMACALL;external External_library name 'llama_eval_embd';
@@ -259,23 +293,23 @@ interface
 
 
 
-  function llama_token_get_text(ctx:Pllama_context; token:Tllama_token):Pchar;LLAMACALL;external External_library name 'llama_token_get_text';
+  function llama_token_get_text(ctx:Pllama_model; token:Tllama_token):Pchar;LLAMACALL;external External_library name 'llama_token_get_text';
 
 
   function llama_token_get_score(ctx:Pllama_context; token:Tllama_token):single;LLAMACALL;external External_library name 'llama_token_get_score';
 
 
-  function llama_token_bos(ctx:Pllama_context):Tllama_token;LLAMACALL;external External_library name 'llama_token_bos';
+  function llama_token_bos(ctx:Pllama_model):Tllama_token;LLAMACALL;external External_library name 'llama_token_bos';
 
 
-  function llama_token_eos(ctx:Pllama_context):Tllama_token;LLAMACALL;external External_library name 'llama_token_eos';
+  function llama_token_eos(ctx:Pllama_model):Tllama_token;LLAMACALL;external External_library name 'llama_token_eos';
 
 
-  function llama_token_nl(ctx:Pllama_context):Tllama_token;LLAMACALL;external External_library name 'llama_token_nl';
+  function llama_token_nl(ctx:Pllama_model):Tllama_token;LLAMACALL;external External_library name 'llama_token_nl';
 
 
-  function llama_tokenize(ctx:Pllama_context; text:Pchar; text_len:longint; tokens:Pllama_token; n_max_tokens:longint;
-             add_bos:TBool):longint;LLAMACALL;external External_library name 'llama_tokenize';
+  function llama_tokenize(ctx:Pllama_model; text:Pchar; text_len:longint; tokens:Pllama_token; n_max_tokens:longint;
+             add_bos:TBool; special: Tbool):longint;LLAMACALL;external External_library name 'llama_tokenize';
 
 
 

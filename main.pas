@@ -388,8 +388,6 @@ end;
 
 
 procedure TForm1.refreshHtml(Chat:TChat);
-var
-  html : Unicodestring;
 begin
 chat.refreshHtml();
 Chat.HTMLViewer.Position:=Chat.HTMLViewer.MaxVertical;
@@ -546,6 +544,11 @@ if (i=0) then
    Form1.log('Loading...'+IntToStr(Round(progress*100))+'%');
 end;
 
+procedure LlamaTokenCallback(answer:string);
+begin
+Form1.log(answer);
+end;
+
 procedure TForm1.AddLLamaCPPChat(Model:string);
 var
   NewTabSheet: TChatTabSheet;
@@ -557,7 +560,29 @@ var
   // Load GGUF
   SetExceptionMask(GetExceptionMask + [exOverflow,exZeroDivide,exInvalidOp]); // God dammit, llama.cpp
   llama_backend_init(False);
-  Chat.Params := llama_context_default_params;
+  Chat.Params := llama_model_default_params;
+{
+/*.n_gpu_layers                =*/ 0,
+/*.main_gpu                    =*/ 0,
+/*.tensor_split                =*/ nullptr,
+/*.progress_callback           =*/ nullptr,
+/*.progress_callback_user_data =*/ nullptr,
+/*.kv_overrides                =*/ nullptr,
+/*.vocab_only                  =*/ false,
+/*.use_mmap                    =*/ true,
+/*.use_mlock                   =*/ false,
+}
+{
+  Chat.Params.n_gpu_layers:=0;
+  Chat.Params.main_gpu:=0;
+  Chat.Params.tensor_split:=nil;
+  Chat.Params.progress_callback:=nil;
+  Chat.Params.progress_callback_user_data:=nil;
+  Chat.Params.kv_overrides:=nil;
+  Chat.Params.vocab_only:=False;
+  Chat.Params.use_mmap:=true;
+  Chat.Params.use_mlock:=False;
+ }
   callback := @LlamaLoadCallback;
   Chat.Params.progress_callback:=callback;
   Chat.llamagguf := llama_load_model_from_file(PChar(Model), Chat.Params);

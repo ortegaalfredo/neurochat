@@ -29,7 +29,7 @@ type
          SearchIndex: Integer; // For the search function
          // For Llama.cpp
          llamagguf: Pllama_model;
-         Params  : Tllama_context_params;
+         Params  : Tllama_model_params;
          //
          ServiceType: AIType;
          Personality: TPersonality;
