@@ -157,6 +157,7 @@ begin
   EmbdInp := TTokenList.Create;
 end;
 
+{LLama.cpp Inference code}
 procedure TllamaCPPThread.Execute;
 var
   TokenStr:UnicodeString;

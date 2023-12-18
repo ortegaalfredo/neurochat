@@ -781,6 +781,44 @@ object Form1: TForm1
         OnClick = MenuItem16Click
       end
     end
+    object MenuItem20: TMenuItem
+      Caption = 'View'
+      object MenuItemZ25: TMenuItem
+        AutoCheck = True
+        Caption = 'Zoom: 25%'
+        GroupIndex = 1
+        RadioItem = True
+        OnClick = MenuItemZ25Click
+      end
+      object MenuItemZ50: TMenuItem
+        AutoCheck = True
+        Caption = 'Zoom: 50%'
+        GroupIndex = 1
+        RadioItem = True
+        OnClick = MenuItemZ50Click
+      end
+      object MenuItemZ100: TMenuItem
+        AutoCheck = True
+        Caption = 'Zoom: 100%'
+        GroupIndex = 1
+        RadioItem = True
+        OnClick = MenuItemZ100Click
+      end
+      object MenuItemZ150: TMenuItem
+        AutoCheck = True
+        Caption = 'Zoom: 150%'
+        GroupIndex = 1
+        RadioItem = True
+        OnClick = MenuItemZ150Click
+      end
+      object MenuItemZ200: TMenuItem
+        AutoCheck = True
+        Caption = 'Zoom: 200%'
+        GroupIndex = 1
+        RadioItem = True
+        OnClick = MenuItemZ200Click
+      end
+    end
     object MenuItem3: TMenuItem
       Caption = 'Help'
       object MenuItem9: TMenuItem
@@ -1276,6 +1314,45 @@ object Form1: TForm1
         GroupIndex = 1
         RadioItem = True
         OnClick = MenuItemCustomPersonalityClick
+      end
+    end
+    object MenuItem21: TMenuItem
+      Caption = 'Zoom'
+      object MenuItemPZ25: TMenuItem
+        AutoCheck = True
+        Caption = 'Zoom: 25%'
+        GroupIndex = 1
+        RadioItem = True
+        OnClick = MenuItemZ25Click
+      end
+      object MenuItemPZ50: TMenuItem
+        AutoCheck = True
+        Caption = 'Zoom: 50%'
+        GroupIndex = 1
+        RadioItem = True
+        OnClick = MenuItemZ50Click
+      end
+      object MenuItemPZ100: TMenuItem
+        AutoCheck = True
+        Caption = 'Zoom: 100%'
+        Checked = True
+        GroupIndex = 1
+        RadioItem = True
+        OnClick = MenuItemZ100Click
+      end
+      object MenuItemPZ150: TMenuItem
+        AutoCheck = True
+        Caption = 'Zoom: 150%'
+        GroupIndex = 1
+        RadioItem = True
+        OnClick = MenuItemZ150Click
+      end
+      object MenuItemPZ200: TMenuItem
+        AutoCheck = True
+        Caption = 'Zoom: 200%'
+        GroupIndex = 1
+        RadioItem = True
+        OnClick = MenuItemZ200Click
       end
     end
     object MenuItemReset: TMenuItem
