@@ -1,11 +1,11 @@
 object Form1: TForm1
-  Left = 2088
-  Height = 757
+  Left = 2086
+  Height = 726
   Top = 487
-  Width = 1452
+  Width = 1314
   Caption = 'Neurochat'
-  ClientHeight = 757
-  ClientWidth = 1452
+  ClientHeight = 726
+  ClientWidth = 1314
   Menu = MainMenu1
   OnCreate = FormCreate
   OnDestroy = FormDestroy
@@ -13,36 +13,22 @@ object Form1: TForm1
   OnShow = FormShow
   Position = poDefault
   LCLVersion = '3.0.0.1'
-  object LabeledEdit1: TLabeledEdit
-    Left = 16
-    Height = 34
-    Top = 712
-    Width = 1432
-    Anchors = [akLeft, akRight, akBottom]
-    EditLabel.Height = 17
-    EditLabel.Width = 8
-    EditLabel.Caption = '>'
-    LabelPosition = lpLeft
-    TabOrder = 0
-    TextHint = 'Press Enter to send a message '
-    OnChange = LabeledEdit1Change
-    OnKeyPress = LabeledEdit1KeyPress
-  end
   object Panel1: TPanel
     Left = 0
-    Height = 697
+    Height = 648
     Top = 0
-    Width = 1453
+    Width = 1315
     Anchors = [akTop, akLeft, akRight, akBottom]
-    ClientHeight = 697
-    ClientWidth = 1453
+    BevelOuter = bvNone
+    ClientHeight = 648
+    ClientWidth = 1315
     PopupMenu = PopupMenu1
-    TabOrder = 1
+    TabOrder = 0
     object PageControl1: TPageControl
-      Left = 1
-      Height = 639
-      Top = 57
-      Width = 1451
+      Left = 0
+      Height = 592
+      Top = 56
+      Width = 1315
       Align = alClient
       PopupMenu = PopupMenu1
       TabOrder = 0
@@ -51,18 +37,18 @@ object Form1: TForm1
       Options = [nboShowCloseButtons, nboKeyboardTabSwitch, nboShowAddTabButton]
     end
     object GroupBoxSearch: TGroupBox
-      Left = 1
+      Left = 0
       Height = 56
-      Top = 1
-      Width = 1451
+      Top = 0
+      Width = 1315
       Align = alTop
       Caption = 'Search'
       ClientHeight = 38
-      ClientWidth = 1449
+      ClientWidth = 1313
       TabOrder = 1
       Visible = False
       object BitBtnSearchLeft: TBitBtn
-        Left = 1224
+        Left = 1088
         Height = 38
         Top = 0
         Width = 91
@@ -107,7 +93,7 @@ object Form1: TForm1
         TabOrder = 0
       end
       object BitBtnSearchRight: TBitBtn
-        Left = 1315
+        Left = 1179
         Height = 38
         Top = 0
         Width = 91
@@ -155,13 +141,13 @@ object Form1: TForm1
         Left = 0
         Height = 38
         Top = 0
-        Width = 1129
+        Width = 993
         Align = alClient
         OnKeyPress = EditSearchKeyPress
         TabOrder = 2
       end
       object BitBtnSearchClose: TBitBtn
-        Left = 1406
+        Left = 1270
         Height = 38
         Top = 0
         Width = 43
@@ -246,7 +232,7 @@ object Form1: TForm1
         TabOrder = 3
       end
       object CheckBoxSearchCase: TCheckBox
-        Left = 1129
+        Left = 993
         Height = 38
         Top = 0
         Width = 95
@@ -257,6 +243,18 @@ object Form1: TForm1
         TabOrder = 4
       end
     end
+  end
+  object Edit1: TEdit
+    Left = 16
+    Height = 50
+    Top = 656
+    Width = 1288
+    Anchors = [akLeft, akRight, akBottom]
+    BorderStyle = bsNone
+    Constraints.MinHeight = 50
+    OnKeyPress = LabeledEdit1KeyPress
+    TabOrder = 1
+    TextHint = 'Write your message'
   end
   object MainMenu1: TMainMenu
     Left = 48
@@ -861,7 +859,7 @@ object Form1: TForm1
         }
         OnClick = MenuItem9Click
       end
-      object MenuItem14: TMenuItem
+      object MenuItemHelp: TMenuItem
         Caption = 'Help'
         Bitmap.Data = {
           36040000424D3604000000000000360000002800000010000000100000000100
@@ -899,7 +897,7 @@ object Form1: TForm1
           FF00FFFFFF00FFFFFF00FFFFFF00CFAF0010D4A90053D4A90071D4A90071D4A9
           0053CFAF0010FFFFFF00FFFFFF00FFFFFF00FFFFFF00FFFFFF00
         }
-        OnClick = MenuItem14Click
+        OnClick = MenuItemHelpClick
       end
     end
   end
@@ -1318,6 +1316,42 @@ object Form1: TForm1
     end
     object MenuItem21: TMenuItem
       Caption = 'Zoom'
+      Bitmap.Data = {
+        36040000424D3604000000000000360000002800000010000000100000000100
+        2000000000000004000064000000640000000000000000000000FFFFFF00FFFF
+        FF00FFFFFF00FFFFFF00D4AA00DFD4AA00FFD4AA00FFD4AA00FFD4AA00FFD4AA
+        00FFD4AA00FFD4AA00FFD4AA00FFD4AA00EFFFFFFF00FFFFFF00FFFFFF00FFFF
+        FF00FFFFFF00FFFFFF00FFFFFF00FFFFFF00FFFFFF00FFFFFF00FFFFFF00FFFF
+        FF00FFFFFF00FFFFFF00FFFFFF00D4AA00FFFFFFFF00FFFFFF00FFFFFF00FFFF
+        FF00FFFFFF00FFFFFF00FFFFFF00FFFFFF00FFFFFF00FFFFFF00FFFFFF00FFFF
+        FF00FFFFFF00FFFFFF00FFFFFF00D4AA00FFFFFFFF00FFFFFF00FFFFFF00FFFF
+        FF00FFFFFF00D3AB0040D3AA00FCD3AB0040FFFFFF00FFFFFF00FFFFFF00FFFF
+        FF00FFFFFF00FFFFFF00FFFFFF00D4AA00FFFFFFFF00FFFFFF00FFFFFF00FFFF
+        FF00D6A80038D5AA00EAD4AA00FFD5AA00EAD6A80038FFFFFF00FFFFFF00FFFF
+        FF00FFFFFF00FFFFFF00FFFFFF00D4AA00FFFFFFFF00FFFFFF00FFFFFF00FFFF
+        FF00D4A8002FD5AC0037D4AA00FFD5AC0037D4A8002FFFFFFF00FFFFFF00FFFF
+        FF00FFFFFF00FFFFFF00FFFFFF00D4AA00FFFFFFFF00FFFFFF00FFFFFF00FFFF
+        FF00FFFFFF00FFFFFF00D4AA00FFFFFFFF00FFFFFF00FFFFFF00FFFFFF00FFFF
+        FF00FFFFFF00FFFFFF00FFFFFF00D4AA00FFFFFFFF00FFFFFF00FFFFFF00FFFF
+        FF00FFFFFF00FFFFFF00D4AA00FFFFFFFF00FFFFFF00FFFFFF00FFFFFF00FFFF
+        FF00FFFFFF00FFFFFF00FFFFFF00D4AA00FFFFFFFF00FFFFFF00FFFFFF00FFFF
+        FF00FFFFFF00FFFFFF00D4AA00FFFFFFFF00FFFFFF00FFFFFF00FFFFFF00FFFF
+        FF00FFFFFF00FFFFFF00FFFFFF00D4AA00FFFFFFFF00FFFFFF00FFFFFF00FFFF
+        FF00FFFFFF00FFFFFF00D4AA00FFFFFFFF00FFFFFF00FFFFFF00FFFFFF00FFFF
+        FF00FFFFFF00FFFFFF00FFFFFF00D4AA00FFFFFFFF00FFFFFF00FFFFFF00FFFF
+        FF00D4A8002FD5AC0037D4AA00FFD5AC0037D4A8002FFFFFFF00FFFFFF00FFFF
+        FF00FFFFFF00FFFFFF00FFFFFF00D4AA00FFFFFFFF00FFFFFF00FFFFFF00FFFF
+        FF00D6A80038D5AA00EAD4AA00FFD5AA00EAD6A80038FFFFFF00FFFFFF00D4AA
+        00EFD4AA00FFD4AA00FFD4AA00FFD4AA00FDFFFFFF00FFFFFF00FFFFFF00FFFF
+        FF00FFFFFF00D3AB0040D3AA00FCD3AB0040FFFFFF00FFFFFF00FFFFFF00D4AA
+        00FFFFFFFF00D5AA003CD4AA00E9D5AA0042FFFFFF00FFFFFF00FFFFFF00FFFF
+        FF00FFFFFF00FFFFFF00FFFFFF00FFFFFF00FFFFFF00FFFFFF00FFFFFF00D4AA
+        00FFD5AA003CD4AA00E9D5AA0042FFFFFF00FFFFFF00FFFFFF00FFFFFF00FFFF
+        FF00FFFFFF00FFFFFF00FFFFFF00FFFFFF00FFFFFF00FFFFFF00FFFFFF00D4AA
+        00FFD4AA00E9D5AA0042FFFFFF00FFFFFF00FFFFFF00FFFFFF00FFFFFF00FFFF
+        FF00FFFFFF00FFFFFF00D4AA00DFD4AA00FFD4AA00FFD4AA00FFD4AA00FFD4AA
+        00FDD3AB0040FFFFFF00FFFFFF00FFFFFF00FFFFFF00FFFFFF00
+      }
       object MenuItemPZ25: TMenuItem
         AutoCheck = True
         Caption = 'Zoom: 25%'

@@ -205,6 +205,9 @@
       <Item>
         <Name Value="EResNotFound"/>
       </Item>
+      <Item>
+        <Name Value="ESocketError"/>
+      </Item>
     </Exceptions>
   </Debugging>
 </CONFIG>

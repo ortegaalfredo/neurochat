@@ -28,19 +28,18 @@ var
 begin
 URL := format('https://api.neuroengine.ai/%s',[LLMName]); // Neuroengine endpoint
 
-// Create an HTTP client and set up the request
-RawByteStr := TFPHTTPClient.SimpleFormPost(URL,APIMessage);
-//RegularStr := UTF8Encode(RawByteStr);
-RegularStr := RawByteStr;
-
 try
+  // Create an HTTP client and set up the request
+  RawByteStr := TFPHTTPClient.SimpleFormPost(URL,APIMessage);
+  //RegularStr := UTF8Encode(RawByteStr);
+  RegularStr := RawByteStr;
   // Parse the regular string as JSON data
   JSONData := GetJSON(RegularStr);
   QueryAPI:=JSONData.AsJSON;
   JSONData.Free;
 except
-  on E: Exception do
-    WriteLn('Error: ', E.Message);
+//  on E: Exception do
+  QueryAPI:='';
 end;
 
 end;
@@ -88,6 +87,7 @@ var
   JSONData: TJSONData;
   rawString:String;
 begin
+     QueryAI:='';
      if (raw=True) then
         rawString:='"True"'
      else rawString:='"False"';
@@ -104,6 +104,7 @@ begin
                            '}'
                            ,[Prompt,temperature,top_p,top_k,repetition_penalty,max_new_len,seed]);
      QueryAI:=QueryAPI(LLMName,JSONToSend);
+     if QueryAI='' then exit;
      JSONData := GetJSON(QueryAI);
      QueryAI:=TJSONObject(JSONData).Find('reply').AsUnicodeString;
 

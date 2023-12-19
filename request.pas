@@ -26,10 +26,11 @@ protected
   procedure Execute; override;
 public
   ModelName: string;
-  UpdateCallback: TUpdate_token_callback;
+  maxContextLen: Integer;
   PromptToAnswer: Unicodestring;
   Response: Unicodestring;
-  constructor Create(Service: string);
+  PartialAnswer: Unicodestring;
+  constructor Create(Service: string;maxCTXLen:Integer);
 end;
 
 // Handle Llama.cpp engine
@@ -53,7 +54,7 @@ private
 protected
   procedure Execute; override;
 public
-  constructor Create(ModelPath:string;llm: Pllama_model; Prams: Tllama_model_params);
+  constructor Create(ModelPath:string;llm: Pllama_model; Prams: Tllama_model_params;maxCTXLen:Integer);
 //  function Load():Boolean;
  end;
 
@@ -67,7 +68,7 @@ private
   procedure AddMessage(const Role, Content: string);
   function AskQuestion(const Question: string): string;
 public
-  constructor Create(ModelPath: string;apikey: string);
+  constructor Create(ModelPath: string;apikey: string;maxCTXLen:Integer);
  end;
 
 
@@ -79,9 +80,9 @@ begin
 end;
 
 {TChatGPTThread}
-constructor TChatGPTThread.Create(ModelPath: string;apikey: string);
+constructor TChatGPTThread.Create(ModelPath: string;apikey: string;maxCTXLen:Integer);
 begin
-  inherited Create(ModelPath); // Create the thread suspended
+  inherited Create(ModelPath,maxCTXLen); // Create the thread suspended
   FMessages := TChatCompletionRequestMessageList.Create;
   FClient := TOpenAIClient.Create;
   FClient.Config.AccessToken := apikey;
@@ -110,7 +111,7 @@ begin
   try
     AddMessage('user', Question);
     Request.Model := self.ModelName;
-    Request.MaxTokens := 2048; // Be careful as this can quickly consume your API quota.
+    Request.MaxTokens := self.maxContextLen; // Be careful as this can quickly consume your API quota.
     for SourceMsg in FMessages do
     begin
       TargetMsg := TChatCompletionRequestMessage.Create;
@@ -118,8 +119,12 @@ begin
       TargetMsg.Role := SourceMsg.Role;
       TargetMsg.Content := SourceMsg.Content;
     end;
-
-    ResponseG := FClient.OpenAI.CreateChatCompletion(Request);
+    try
+        ResponseG := FClient.OpenAI.CreateChatCompletion(Request);
+    except
+      Result := 'Connection error.';
+      exit;
+    end;
     if Assigned(ResponseG.Choices) and (ResponseG.Choices.Count > 0) then
     begin
       Result := ResponseG.Choices[0].Message.Content;
@@ -146,9 +151,9 @@ begin
 end;
 
 {TllamaCPPThread}
-constructor TllamaCPPThread.Create(ModelPath:string;llm: Pllama_model; Prams: Tllama_model_params);
+constructor TllamaCPPThread.Create(ModelPath:string;llm: Pllama_model; Prams: Tllama_model_params;maxCTXLen:Integer);
 begin
-  inherited Create(ModelPath); // Create the thread suspended
+  inherited Create(ModelPath,maxCTXLen); // Create the thread suspended
 //  self.Loaded:=False;
   self.ModelFName:=ModelPath;
   self.Model:=llm;
@@ -157,11 +162,64 @@ begin
   EmbdInp := TTokenList.Create;
 end;
 
+function HexToUnicode(const HexString: string): WideString;
+var
+  HexValue: string;
+  CodePoint: LongWord;
+  i: Integer;
+  InsideHtmlTag: Boolean;
+begin
+  Result := '';
+  i := 1;
+  InsideHtmlTag := False;
+
+  while i <= Length(HexString) do
+  begin
+    if HexString[i] = '<' then
+    begin
+      InsideHtmlTag := True;
+      Result := Result + HexString[i];
+      Inc(i);
+    end
+    else if HexString[i] = '>' then
+    begin
+      InsideHtmlTag := False;
+      Result := Result + HexString[i];
+      Inc(i);
+    end
+    else if (InsideHtmlTag) and (HexString[i] = '0') then
+    begin
+      Inc(i); // Skip '0x'
+      Inc(i); // Skip '0x'
+
+      // Extract the hexadecimal value
+      HexValue := '';
+      while (i <= Length(HexString)) and (HexString[i] <> '>') do
+      begin
+        HexValue := HexValue + HexString[i];
+        Inc(i);
+      end;
+
+      // Convert the hexadecimal value to a Unicode code point
+      if TryStrToInt('$' + HexValue, LongInt(CodePoint)) then
+        Result := Result + WideChar(CodePoint)
+      else
+        raise Exception.Create('Invalid hexadecimal value: ' + HexValue);
+    end
+    else
+    begin
+      // Append non-hexadecimal characters or characters inside HTML tags as is
+      Result := Result + HexString[i];
+      Inc(i);
+    end;
+  end;
+end;
+
 {LLama.cpp Inference code}
 procedure TllamaCPPThread.Execute;
 var
-  TokenStr:UnicodeString;
-  answer:UnicodeString;
+  TokenStr:RawByteString;
+  answer:String;
   p:Integer;
   S: String;
   N_THREADS: Integer;
@@ -170,8 +228,14 @@ var
   TYPICAL_P: Single;
   TFS_Z: Single;
   TEMP: Single;
+  uni: Byte;
   ctxParams:Tllama_context_params;
 begin
+  if self.Model=nil then
+     begin
+       Response:='This local AI is not loaded. Please open the AI file first.';
+       exit;
+     end;
   N_THREADS:=StrToIntDef(Settings.ComboBoxThreads.Text,4);
   TOP_K:= StrToIntDef(Settings.LabeledEditK.Text,40);
   TOP_P:= StrToFloatDef(Settings.LabeledEditP.Text,0.88);
@@ -184,7 +248,7 @@ begin
   ctxParams.n_threads:=N_THREADS;
   ctxParams.n_threads_batch:=N_THREADS;
   Ctx:=llama_new_context_with_model(Model,ctxParams);
-  max_context_size     := llama_n_ctx(ctx);
+  max_context_size     := Min(llama_n_ctx(ctx),self.maxContextLen);
   max_tokens_list_size := max_context_size - 4;
   n_gen := Min(StrToIntDef(Settings.LabeledEditMaxLen.Text,1024), max_context_size);
   S := PromptToAnswer;
@@ -228,7 +292,6 @@ begin
   //      token_id:=llama_sample_token_greedy(ctx, @candidates_p);
         if token_id = llama_token_eos(Model) then
             begin
-              Write(' <EOS>');
               break;
             end
             else begin
@@ -236,12 +299,24 @@ begin
                   TokenStr:=StringReplace(TokenStr,'▁',' ',[rfReplaceAll]);
                   if LowerCase(TokenStr)='user' then
                       break;
+                  {Try to detect encoded chars, why you do this llama.cpp?}
+                  if length(Tokenstr)=6 then
+                     begin
+                       if (TokenStr[1]='<') and (TokenStr[6]='>') then
+                          begin
+                          TokenStr := Copy(TokenStr, 4, Length(TokenStr) - 4); // Remove the angle brackets
+                          p := hex2dec(TokenStr); // Convert hexadecimal to decimal
+                          uni := p; // Convert decimal to char
+                          writeln(ord(uni));
+                          TokenStr:=chr(uni);
+                          end;
+                     end;
+                  writeln(TokenStr+'-'+IntToStr(length(TokenStr)));
                   if token_id = llama_token_nl(Model) then
                        answer:=answer+#10
                   else answer:=answer+TokenStr;
                   {Update gui token by token}
-                  if self.UpdateCallback <> nil then
-                     self.UpdateCallback(answer);
+                  self.PartialAnswer:=answer;
                   EmbdInp.Add(token_id);
                   C:=1;
                   end;
@@ -250,16 +325,17 @@ begin
   SSTokens.Free;
   EmbdInp.Free;
   Response:=answer;
+  self.PartialAnswer:='';
   Terminate;
 end;
 
 {TRequestThread}
 
-constructor TRequestThread.Create(Service: string);
+constructor TRequestThread.Create(Service: string;maxCTXLen:Integer);
 begin
   inherited Create(True); // Create the thread suspended
   self.ModelName:=Service;
-  self.UpdateCallback:=nil;
+  self.maxContextLen:=maxCTXLen;
 end;
 
 function UnicodeToEscape(const UnicodeStr: string): AnsiString;
@@ -299,9 +375,14 @@ begin
   TOP_K:= StrToIntDef(Settings.LabeledEditK.Text,40);
   TOP_P:= StrToFloatDef(Settings.LabeledEditP.Text,0.88);
   TEMP:= StrToFloatDef(Settings.LabeledEditTemperature.Text, 1.0);
-  max_new_len := Min(StrToIntDef(Settings.LabeledEditMaxLen.Text,1024),2048);
+  max_new_len := self.maxContextLen;
 
   answer:=QueryAI(self.ModelName,PromptToAnswer,TEMP,TOP_P,TOP_K,1.2,max_new_len,0,True);
+  if answer='' then begin
+    Response:='Connection error.';
+    Terminate;
+    Exit;
+    end;
   // Find answer and cut it
   p:=0;
   if (p=0) then

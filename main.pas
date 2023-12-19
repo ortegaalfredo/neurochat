@@ -19,14 +19,14 @@ type
     BitBtnSearchRight: TBitBtn;
     BitBtnSearchClose: TBitBtn;
     CheckBoxSearchCase: TCheckBox;
+    Edit1: TEdit;
     EditSearch: TEdit;
     GroupBoxSearch: TGroupBox;
-    LabeledEdit1: TLabeledEdit;
     MainMenu1: TMainMenu;
     MenuItem1: TMenuItem;
     MenuItem10: TMenuItem;
     MenuItem12: TMenuItem;
-    MenuItem14: TMenuItem;
+    MenuItemHelp: TMenuItem;
     MenuItem15: TMenuItem;
     MenuItem17: TMenuItem;
     MenuItem18: TMenuItem;
@@ -103,10 +103,9 @@ type
     procedure FormShow(Sender: TObject);
     procedure Log(str: String);
     procedure AddLLM(LLM: string; serviceIndex: Integer);
-    procedure LabeledEdit1Change(Sender: TObject);
     procedure MenuItem10Click(Sender: TObject);
     procedure MenuItem12Click(Sender: TObject);
-    procedure MenuItem14Click(Sender: TObject);
+    procedure MenuItemHelpClick(Sender: TObject);
     procedure MenuItem19Click(Sender: TObject);
     procedure MenuItem23Click(Sender: TObject);
     procedure MenuItem6Click(Sender: TObject);
@@ -149,7 +148,6 @@ type
   private
     connected:boolean;
     neuroEngines: array of TNeuroengineService;
-    answer: String;
     currentzoom:Integer;
     procedure setHtmlSize(size:Integer);
 
@@ -166,11 +164,9 @@ type
      property Chat: TChat read FChat write FChat;
    end;
 
-   TMyQueue=specialize TQueue<String>;
 var
   Form1: TForm1;
-  Queue: TMyQueue;
-
+  LoadingVar: Integer;
 implementation
 
 {$R *.lfm}
@@ -215,16 +211,20 @@ begin
 
 if self.connected=True then
  exit;
-self.connected:=True;
 
 self.Log('Connecting to neuroengine...');
-
 // Prepare the JSON data to send in the POST request
 JSONToSend := '{"command": "getmodels"}'; // Replace with your JSON data
-RegularStr:=QueryAPI('',JSONToSend);
-self.Log('Connected. Requesting model list...');
 
 try
+  RegularStr:=QueryAPI('',JSONToSend);
+  if (RegularStr='') then begin
+    log('Cannot connect to Neuroengine.ai site.');
+    exit;
+    end;
+
+  self.connected:=True;
+  self.Log('Connected. Requesting model list...');
   // Parse the regular string as JSON data
   JSONData := GetJSON(RegularStr);
   // Allocate memory for storage
@@ -254,12 +254,12 @@ try
       end;
   // Clean up
   JSONData.Free;
+  self.Log('Found '+LogString);
+  Log(self.neuroEngines[0].comment);
 except
   on E: Exception do
-    log('Error: '+ E.Message);
+    log('Cannot connect to Neuroengine.ai site: '+ E.Message);
 end;
-self.Log('Found '+LogString);
-Log(self.neuroEngines[0].comment);
 //if TreeView1.Items.Count>0 then
 //   TreeView1.Selected:=TreeView1.Items[0];
 
@@ -319,6 +319,7 @@ var
   NewTabSheet: TChatTabSheet;
   IniFile: TIniFile;
   autosave:Boolean;
+  maxCtxLen:Integer;
 const
   sFileName = 'neurochat.history';
 begin
@@ -332,6 +333,8 @@ try
    {Read zoom settings}
    currentZoom:=IniFile.ReadInteger('Common','zoom',12);
    self.setHtmlSize(currentZoom);
+   {Read maxlen settings}
+   maxCtxLen:=IniFile.ReadInteger('Common','max_new_len',1024);
    {Set zoom menu check}
    case currentZoom of
         8: begin
@@ -378,6 +381,7 @@ end;
                 NewTabSheet.PageControl:=PageControl1;
                 NewTabSheet.Caption:=chat.ServiceName;
                 NewTabSheet.Tag:=0;
+                chat.max_context_len:=maxCtxLen;
                 // Allocate new ChatStruct
 //                Chat.ServiceIndex:=0;
                 Chat.HtmlViewer := THtmlViewer.Create(NewTabSheet);
@@ -417,7 +421,7 @@ end;
 
 
 // Build airoboros-style chat
-function buildChatPrompt(chat: Tstrings;preprompt:String;endprompt:String) : string;
+function buildChatPrompt(chat: Tstrings;preprompt:String;endprompt:String;maxContext:Integer) : string;
 var
 prompt: string;
 pre:string;
@@ -429,6 +433,8 @@ for i:=chat.Count downto 1 do
     if StartsStr('User: ',chat[i-1]) then
           pre:=#10
     else  pre:=#10+endprompt;
+    if length(pre+chat[i-1]+prompt)>=maxContext*2 then
+         break;
     prompt:=pre+chat[i-1]+prompt;
     end;
 buildChatPrompt:=preprompt+prompt;
@@ -438,7 +444,8 @@ end;
 
 procedure TForm1.refreshHtml(Chat:TChat);
 begin
-chat.refreshHtml();
+Chat.HTMLViewer.DoubleBuffered:=True;
+Chat.refreshHtml();
 Chat.HTMLViewer.Position:=Chat.HTMLViewer.MaxVertical;
 end;
 
@@ -451,16 +458,16 @@ if (Key = #13) then // Enter key is represented by ASCII value of 13, so check f
    if (PageControl1.ActivePage=Nil) then
       exit;
    Chat:=TChatTabSheet(PageControl1.ActivePage).Chat;
-   Chat.outhtml.Add('### User: '+LabeledEdit1.Text);
+   Chat.outhtml.Add('### User: '+Edit1.Text);
    Chat.outhtml.Add('AI is typing...');
-   Chat.Chatlines.Add('User: '+LabeledEdit1.Text);
+   Chat.Chatlines.Add('User: '+Edit1.Text);
    if (Chat.requestThread<>Nil) then // cancel current thread
       Chat.terminateRequestThread();
    // Request thread
    Chat.createRequestThread();
-   Chat.requestThread.PromptToAnswer:=buildChatPrompt(Chat.chatlines,Chat.Personality.preprompt,Chat.Personality.endprompt);
+   Chat.requestThread.PromptToAnswer:=buildChatPrompt(Chat.chatlines,Chat.Personality.preprompt,Chat.Personality.endprompt,Chat.max_context_len);
    Chat.requestThread.Start;
-   self.LabeledEdit1.Text:='';
+   self.Edit1.Text:='';
    self.refreshHtml(Chat);
    end;
 end;
@@ -532,8 +539,8 @@ var
   Chat: TChat;
   i:Integer;
 begin
-if self.connected=False then
- self.ConnectNeuroengine();
+//if self.connected=False then
+//   exit;
 for i := 0 to PageControl1.PageCount - 1 do
     begin
     Chat:=TChatTabSheet(PageControl1.Pages[i]).Chat;
@@ -545,15 +552,16 @@ for i := 0 to PageControl1.PageCount - 1 do
        Chat.outhtml.Add(Chat.requestThread.Response);
        Chat.Chatlines.Add(Chat.requestThread.Response);
        Chat.requestThread.Response:='';
-       self.answer:='';
        Chat.requestThread.Free;
        Chat.requestThread:=Nil;
        self.refreshHtml(Chat);
        end;
-    if Length(self.answer)>0 then
+    if Chat.requestThread<>nil then
+    if Length(Chat.requestThread.PartialAnswer)>0 then
       begin
+      Chat.HtmlViewer.DoubleBuffered:=False;
       Chat.outhtml.Delete(Chat.outhtml.Count-1);
-      Chat.outhtml.Add(self.answer);
+      Chat.outhtml.Add(Chat.requestThread.PartialAnswer);
       self.refreshHtml(Chat);
       end;
      end;
@@ -576,7 +584,7 @@ NewTabSheet.Caption:=ServiceName;
 NewTabSheet.Tag:=ServiceIndex;
 
 // Allocate new ChatStruct
-Chat:= TChat.Create(ServiceName,AIT_Neuroengine);
+Chat:= TChat.Create(ServiceName,AIT_Neuroengine,'#EBF5FB',StrToIntDef(Settings.LabeledEditMaxLen.Text,1024));
 //Chat.ServiceIndex:=ServiceIndex;
 if ServiceIndex>=0 then
    begin
@@ -598,14 +606,15 @@ procedure LlamaLoadCallback(progress:single; ctx:pointer);cdecl;
 var
   i:Integer;
 begin
-i:=Round(progress*100) mod 20;
-if (i=0) then
+LoadingVar:=LoadingVar+1;
+if (LoadingVar>20) then
+   begin
    Form1.log('Loading...'+IntToStr(Round(progress*100))+'%');
-end;
-
-procedure LlamaTokenCallback(answer:string);
-begin
-Form1.answer:=answer;
+   Sleep(100);
+   Form1.Invalidate;
+   Form1.Update;
+   LoadingVar:=0;
+   end
 end;
 
 procedure TForm1.AddLLamaCPPChat(Model:string);
@@ -613,24 +622,18 @@ var
   NewTabSheet: TChatTabSheet;
   Chat: TChat;
   callback: Tllama_progress_callback;
+  maxContextLen: Integer;
   begin
   // Allocate new ChatStruct
-  Chat:= TChat.Create(Model,AIT_LlamaCPP,'#ffefd1');
+  {Max LLama.cpp ctx?}
+  maxContextLen:=Min(512,StrToIntDef(Settings.LabeledEditMaxLen.Text,1024));
+  Chat:= TChat.Create(Model,AIT_LlamaCPP,'#ffefd1',maxContextLen);
   // Load GGUF
   SetExceptionMask(GetExceptionMask + [exOverflow,exZeroDivide,exInvalidOp]); // God dammit, llama.cpp
   llama_backend_init(False);
   Chat.Params := llama_model_default_params;
+  LoadingVar:=0;
   Chat.Params.progress_callback:=@LlamaLoadCallback;
-  Chat.UpdateTokenCallback:=@LlamaTokenCallback;
-  Chat.llamagguf := llama_load_model_from_file(PChar(Model), Chat.Params);
-  if Chat.llamagguf = nil then
-     begin
-     log('Failed to load model '+Model);
-     Chat.Free;
-     exit;
-     //raise Exception.Create('Failed to load model');
-     end;
-
   // Add a new tab sheet to the page control
   NewTabSheet := TChatTabSheet.Create(PageControl1);
   NewTabSheet.PageControl:=PageControl1;
@@ -643,6 +646,17 @@ var
   Chat.HtmlViewer.DefFontSize:=self.currentzoom;
   NewTabSheet.Chat:=Chat;
   PageControl1.ActivePage:=NewTabSheet;
+  // Load model
+  Chat.llamagguf := llama_load_model_from_file(PChar(Model), Chat.Params);
+  if Chat.llamagguf = nil then
+     begin
+     log('Failed to load model '+NewTabSheet.Caption);
+     Chat.Free;
+     exit;
+     //raise Exception.Create('Failed to load model');
+     end
+  else log('Model '+NewTabSheet.Caption+' loaded.');
+
   end;
 
 procedure TForm1.AddChatGPTChat(Model:string);
@@ -656,7 +670,7 @@ var
   NewTabSheet.Caption:=Model;
 
   // Allocate new ChatStruct
-  Chat:= TChat.Create(Model,AIT_ChatGPT,'#e2f7e8');
+  Chat:= TChat.Create(Model,AIT_ChatGPT,'#e2f7e8',StrToIntDef(Settings.LabeledEditMaxLen.Text,1024));
   Chat.HtmlViewer := THtmlViewer.Create(NewTabSheet);
   Chat.HtmlViewer.Parent:=NewTabSheet;
   Chat.HtmlViewer.ScrollBars:=ssVertical;
@@ -704,10 +718,6 @@ begin
      end;
 end;
 
-procedure TForm1.LabeledEdit1Change(Sender: TObject);
-begin
-
-end;
 
 procedure TForm1.MenuItem10Click(Sender: TObject);
 begin
@@ -725,9 +735,37 @@ if Length(Settings.LabeledEditApiKey.Text)=0 then
   self.AddChatGPTChat('gpt-4');
 end;
 
-procedure TForm1.MenuItem14Click(Sender: TObject);
+procedure TForm1.MenuItemHelpClick(Sender: TObject);
+const
+  HelpArray: array[0..21] of String =
+              ('<H1>NeuroChat</H1>',
+               'Neurochat is a front-end platform designed to facilitate interaction with various AI services, including the Neuroengine service, OpenAI''s ChatGPT API, and local Llama.cpp AI models. Its primary function is to offer a cohesive user experience while managing these diverse AI systems through one convenient GUI.',
+               '<H2>Basic usage<H2>',
+               'You have several options to access AIs:<ul>',
+               '<li><b>Neuroengine.ai:</b> This service provides unrestricted access to a variety of general-purpose, open-source AI models without requiring user registration. Contrasting with many other AIs, these models typically remain unmoderated. It''s important to note that advanced AI systems often take longer to generate responses compared to their less complex counterparts.</li>',
+               '<li><b>ChatGPT API:</b> Use ChatGPT via the OpenAI API. Several models are available, including ChatGPT 3.5 and ChatGPT4-turbo</li>',
+               '<li><b>Open Local AI:</b>Open and use a local AI stored in your hard disk using LLama.cpp module. This requires fast hardware and enought RAM to fit the AI in memory but it allows a level of privacy and customization that other services cannot provide. Additionally, this can be used without any internet connection, but you must download the AI files to your local HDD.</li>',
+               '</ul>',
+               '<H2>Recommended local AIs (as of Dec 2023):</H2>If you choose to run a Local AI, you need to download the AI neural network to your local disk. The AI files are usually several gigabytes in lenght. Recommended AIs are:<ul>',
+               '<li><b>phi-2</b> This is a very small and fast free AI from Microsoft, that still have good quality. It requires 2 GB of disk and 4GB of RAM memory. A good version of this AI is phi-2-GGUF from TheBloke repository, that can be downloded from here: <a href="https://huggingface.co/TheBloke/phi-2-GGUF/resolve/main/phi-2.Q4_K_M.gguf">https://huggingface.co/TheBloke/phi-2-GGUF/resolve/main/phi-2.Q4_K_M.gguf</a></li>',
+               '<li><b>Mistral-7B</b> This is a small free AI from Mistral.ai, that still have good quality. It requires 5 GB of disk and 8GB of RAM memory. A good version of this AI is mistral-7B-finetuned-orca-dpo-v2-GGUF from TheBloke repository, that can be downloded from here: <a href="https://huggingface.co/TheBloke/mistral-7B-finetuned-orca-dpo-v2-GGUF/blob/main/mistral-7b-finetuned-orca-dpo-v2.Q4_K_M.gguf">https://huggingface.co/TheBloke/mistral-7B-finetuned-orca-dpo-v2-GGUF/blob/main/mistral-7b-finetuned-orca-dpo-v2.Q4_K_M.gguf</a></li>',
+               '<li><b>Mixtral-8x7B</b> This is a large free AI from Mistral.ai, excellent quality rivalling ChatGPT 3.5. It requires 20 GB of disk and 24GB of RAM memory. Mixtral is much slower but much higher quality than Mistral. It can be downloded from here: <a href="https://huggingface.co/TheBloke/Mixtral-8x7B-Instruct-v0.1-GGUF/resolve/main/mixtral-8x7b-instruct-v0.1.Q3_K_M.gguf">https://huggingface.co/TheBloke/Mixtral-8x7B-Instruct-v0.1-GGUF/resolve/main/mixtral-8x7b-instruct-v0.1.Q3_K_M.gguf</a></li>',
+               '<H2>Using ChatGPT API</H2>',
+               'You can use ChatGPT 3.5, ChatGPT4 and any chat model from OpenAI, directly from the Neurochat app, just following those steps:<ul>',
+               '<li>Register with OpenAI to acquire an API key. Note that OpenAI may charge for this service.</li>',
+               '<li>After obtaining the API key from OpenAI, insert it into the “options” window, under the “ChatGPT API” tab.</li>',
+               'One advantage of using OpenAI is their assurance that your data is not utilized for training Language Learning Models (LLMs). Another benefit is gaining access to GPT4 without purchasing the GPT+ subscription - simply pay per individual query. Note that Neurochat authors are not associated with OpenAI and do not recieve any kind of compensation.',
+               '<H2>Personality</H2>',
+               'You can set the personality of the AI on each individual Tab. There are several personalities available from "Assistant" (the default) to a Coder personality based on Terry Davis, and you can also create your own personality in the "Options" windows and seeting the personality as "Custom"',
+               '<H2>Additional features</H2>',
+               'The Neurochat app will save and load automatically all tabs. Also you can export the chat contents of a single tab in html or txt format using the "Save chat as..." menu.',
+               '');
+var
+   i:Integer;
 begin
-
+AddNeuroengineChat(-1);
+for i:=0 to length(HelpArray)-1 do
+    Log(HelpArray[i]);
 end;
 
 procedure TForm1.MenuItem19Click(Sender: TObject);
@@ -755,9 +793,12 @@ end;
 
 procedure TForm1.MenuItem9Click(Sender: TObject);
 begin
-  Log('Neurochat '+self.version+' by @ortegaalfredo');
+  Log('ABOUT:');
+  Log('<b>Neurochat '+self.version+' by @ortegaalfredo</b>');
   Log('Github: https://github.com/ortegaalfredo/neurochat');
+  Log('Models: https://neuroengine.ai');
   Log('Discord: https://discord.gg/raeft3whmn');
+  Log('');
 end;
 
 procedure TForm1.MenuItemAssistantPersonalityClick(Sender: TObject);
