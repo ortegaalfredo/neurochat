@@ -26,11 +26,13 @@ type
     MenuItem1: TMenuItem;
     MenuItem10: TMenuItem;
     MenuItem12: TMenuItem;
+    MenuItem14: TMenuItem;
+    MenuItem23: TMenuItem;
+    MenuItem24: TMenuItem;
+    MenuItem25: TMenuItem;
+    MenuItem26: TMenuItem;
     MenuItemHelp: TMenuItem;
-    MenuItem15: TMenuItem;
-    MenuItem17: TMenuItem;
     MenuItem18: TMenuItem;
-    MenuItem19: TMenuItem;
     MenuItem20: TMenuItem;
     MenuItem21: TMenuItem;
     MenuItemPZ200: TMenuItem;
@@ -45,12 +47,10 @@ type
     MenuItemZ200: TMenuItem;
     MenuItemCloseTab: TMenuItem;
     MenuItemFind: TMenuItem;
-    MenuItem7: TMenuItem;
     MenuItemOpenAI: TMenuItem;
     MenuItemCustomPersonality: TMenuItem;
     MenuItemMainNe: TMenuItem;
     MenuItem22: TMenuItem;
-    MenuItem23: TMenuItem;
     MenuItemSaveAs: TMenuItem;
     MenuItem13: TMenuItem;
     MenuItemDefaultPersonality: TMenuItem;
@@ -282,9 +282,9 @@ var
   f: TFileStream;
   root:TJSONObject;
   chatArray: TJSONArray;
-const
-  sFileName = 'neurochat.history';
+  sFileName:String;
 begin
+   sFileName := GetUserDir+'/.neurochat.history';
    root := TJSONObject.Create;
    chatArray := TJSONArray.Create;
 
@@ -320,13 +320,13 @@ var
   IniFile: TIniFile;
   autosave:Boolean;
   maxCtxLen:Integer;
-const
-  sFileName = 'neurochat.history';
+  sFileName:String;
 begin
+sFileName := GetUserDir+'/.neurochat.history';
 self.connected:=False;
 self.KeyPreview:=True;
 {Read config file}
-IniFile := TIniFile.Create('neuroengine.ini');
+IniFile := TIniFile.Create(GetUserDir+'/.neurochat.ini');
 try
    {Read autosave setting}
    autosave:=IniFile.ReadBool('Common','autosave',True);
@@ -542,6 +542,10 @@ begin
 if self.connected=False then
    begin
    self.ConnectNeuroengine();
+   if length(self.neuroEngines)>0 then
+      log('Connected successfuly. Ready to chat.')
+   else
+       log('Can''t connect. Check your internet connection.');
    self.connected:=true;
    exit;
    end;
@@ -577,6 +581,8 @@ var
   NewTabSheet: TChatTabSheet;
   Chat: TChat;
   ServiceName: string;
+  IniFile:TIniFile;
+  maxCtxLen:Integer;
 begin
 if ServiceIndex=-1 then
  ServiceName:='Mixtral-7b-8expert'
@@ -588,7 +594,14 @@ NewTabSheet.Caption:=ServiceName;
 NewTabSheet.Tag:=ServiceIndex;
 
 // Allocate new ChatStruct
-Chat:= TChat.Create(ServiceName,AIT_Neuroengine,'#EBF5FB',StrToIntDef(Settings.LabeledEditMaxLen.Text,1024));
+IniFile := TIniFile.Create(GetUserDir+'/.neurochat.ini');
+try
+   {Read maxlen settings}
+   maxCtxLen:=IniFile.ReadInteger('Common','max_new_len',1024);
+finally
+  IniFile.Free;
+end;
+Chat:= TChat.Create(ServiceName,AIT_Neuroengine,'#EBF5FB',maxCtxLen);
 //Chat.ServiceIndex:=ServiceIndex;
 if ServiceIndex>=0 then
    begin
@@ -741,7 +754,7 @@ end;
 
 procedure TForm1.MenuItemHelpClick(Sender: TObject);
 const
-  HelpArray: array[0..21] of String =
+  HelpArray: array[0..20] of String =
               ('<H1>NeuroChat</H1>',
                'Neurochat is a front-end platform designed to facilitate interaction with various AI services, including the Neuroengine service, OpenAI''s ChatGPT API, and local Llama.cpp AI models. Its primary function is to offer a cohesive user experience while managing these diverse AI systems through one convenient GUI.',
                '<H2>Basic usage<H2>',
@@ -751,7 +764,6 @@ const
                '<li><b>Open Local AI:</b>Open and use a local AI stored in your hard disk using LLama.cpp module. This requires fast hardware and enought RAM to fit the AI in memory but it allows a level of privacy and customization that other services cannot provide. Additionally, this can be used without any internet connection, but you must download the AI files to your local HDD.</li>',
                '</ul>',
                '<H2>Recommended local AIs (as of Dec 2023):</H2>If you choose to run a Local AI, you need to download the AI neural network to your local disk. The AI files are usually several gigabytes in lenght. Recommended AIs are:<ul>',
-               '<li><b>phi-2</b> This is a very small and fast free AI from Microsoft, that still have good quality. It requires 2 GB of disk and 4GB of RAM memory. A good version of this AI is phi-2-GGUF from TheBloke repository, that can be downloded from here: <a href="https://huggingface.co/TheBloke/phi-2-GGUF/resolve/main/phi-2.Q4_K_M.gguf">https://huggingface.co/TheBloke/phi-2-GGUF/resolve/main/phi-2.Q4_K_M.gguf</a></li>',
                '<li><b>Mistral-7B</b> This is a small free AI from Mistral.ai, that still have good quality. It requires 5 GB of disk and 8GB of RAM memory. A good version of this AI is mistral-7B-finetuned-orca-dpo-v2-GGUF from TheBloke repository, that can be downloded from here: <a href="https://huggingface.co/TheBloke/mistral-7B-finetuned-orca-dpo-v2-GGUF/blob/main/mistral-7b-finetuned-orca-dpo-v2.Q4_K_M.gguf">https://huggingface.co/TheBloke/mistral-7B-finetuned-orca-dpo-v2-GGUF/blob/main/mistral-7b-finetuned-orca-dpo-v2.Q4_K_M.gguf</a></li>',
                '<li><b>Mixtral-8x7B</b> This is a large free AI from Mistral.ai, excellent quality rivalling ChatGPT 3.5. It requires 20 GB of disk and 24GB of RAM memory. Mixtral is much slower but much higher quality than Mistral. It can be downloded from here: <a href="https://huggingface.co/TheBloke/Mixtral-8x7B-Instruct-v0.1-GGUF/resolve/main/mixtral-8x7b-instruct-v0.1.Q3_K_M.gguf">https://huggingface.co/TheBloke/Mixtral-8x7B-Instruct-v0.1-GGUF/resolve/main/mixtral-8x7b-instruct-v0.1.Q3_K_M.gguf</a></li>',
                '<H2>Using ChatGPT API</H2>',
@@ -1026,7 +1038,7 @@ for i := 0 to PageControl1.PageCount - 1 do
     Chat.HtmlViewer.DefFontSize:=size;
     Chat.refreshHtml();
     end;
-IniFile := TIniFile.Create('neuroengine.ini');
+IniFile := TIniFile.Create(GetUserDir+'/.neurochat.ini');
 try
    {Savezoom settings}
    IniFile.WriteInteger('Common','zoom',size);

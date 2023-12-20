@@ -307,11 +307,9 @@ begin
                           TokenStr := Copy(TokenStr, 4, Length(TokenStr) - 4); // Remove the angle brackets
                           p := hex2dec(TokenStr); // Convert hexadecimal to decimal
                           uni := p; // Convert decimal to char
-                          writeln(ord(uni));
                           TokenStr:=chr(uni);
                           end;
                      end;
-                  writeln(TokenStr+'-'+IntToStr(length(TokenStr)));
                   if token_id = llama_token_nl(Model) then
                        answer:=answer+#10
                   else answer:=answer+TokenStr;

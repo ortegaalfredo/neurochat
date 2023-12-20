@@ -56,7 +56,7 @@ implementation
 { TSettings }
 procedure TSettings.FormCreate(Sender: TObject);
 begin
-  IniFile := TIniFile.Create('neuroengine.ini');
+  IniFile := TIniFile.Create(GetUserDir+'/.neurochat.ini');
   try
     self.CheckBoxAutosave.Checked:=IniFile.ReadBool('Common','autosave',True);
     self.LabeledEditTemperature.Text:=FloatToStr(IniFile.ReadFloat('Common','temperature',1.0));
@@ -79,7 +79,7 @@ end;
 
 procedure TSettings.BitBtnOKClick(Sender: TObject);
 begin
-    IniFile := TIniFile.Create('neuroengine.ini');
+    IniFile := TIniFile.Create(GetUserDir+'/.neurochat.ini');
   try
     IniFile.WriteBool('Common','autosave',self.CheckBoxAutosave.Checked);
     IniFile.WriteFloat('Common','temperature',StrToFloatDef(self.LabeledEditTemperature.Text,1.0));

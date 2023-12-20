@@ -10,7 +10,7 @@ uses
   athreads,
   {$ENDIF}
   Interfaces, // this includes the LCL widgetset
-  Forms, main, FrameViewer09, OptionsForm, request, llama, OpenAIClient, chat;
+  Forms, main, FrameViewer09, OptionsForm;//, request, llama, OpenAIClient, chat;
   { you can add units after this }
 
 {$R *.res}

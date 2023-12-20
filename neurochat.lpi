@@ -54,6 +54,8 @@
               <UseExternalDbgSyms Value="True"/>
             </Debugging>
             <Options>
+              <PassLinkerOptions Value="True"/>
+              <LinkerOptions Value="-lm -ldl -lstdc++"/>
               <Win32>
                 <GraphicApplication Value="True"/>
               </Win32>
@@ -85,6 +87,7 @@
             <Debugging>
               <GenerateDebugInfo Value="False"/>
               <RunWithoutDebug Value="True"/>
+              <StripSymbols Value="True"/>
             </Debugging>
             <LinkSmart Value="True"/>
             <Options>

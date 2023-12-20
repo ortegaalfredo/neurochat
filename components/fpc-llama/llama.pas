@@ -34,7 +34,7 @@ interface
 }
 
   const
-    External_library='libllama.so'; {Setup as you need}
+    External_library=LLAMALIB; {Setup as you need}
 
   Type
 
