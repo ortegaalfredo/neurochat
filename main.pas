@@ -539,8 +539,12 @@ var
   Chat: TChat;
   i:Integer;
 begin
-//if self.connected=False then
-//   exit;
+if self.connected=False then
+   begin
+   self.ConnectNeuroengine();
+   self.connected:=true;
+   exit;
+   end;
 for i := 0 to PageControl1.PageCount - 1 do
     begin
     Chat:=TChatTabSheet(PageControl1.Pages[i]).Chat;

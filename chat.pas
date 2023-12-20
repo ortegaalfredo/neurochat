@@ -211,21 +211,21 @@ end;
 function TChat.buildHtmlChat(chat: Tstrings) : Unicodestring;
 var
   q:Integer;
-  str:String;
+  str:Unicodestring;
 begin
 Result:='';
 for q:=0 to chat.Count-1 do
     begin
     str:=chat.Strings[q];
     if StartsStr('### User: ',str) then
-        Result:=Result+'<div class="roundedBox">'+md.process(chat.Strings[q])+'</div>'
+        Result:=Result+'<tr style="align: center;background-color: '+color+';padding: 0px"><td>'+md.process(chat.Strings[q])+'</td></tr>'
     else
       if StartsStr('<SYSTEM>',chat.Strings[q]) then
-          Result:=Result+'<div style="color:#808080;font-size: 80%;">'+chat.Strings[q]+'</div>'
+          Result:=Result+'<tr style="color:#808080;font-size: 80%;"><td>'+chat.Strings[q]+'</td></tr>'
       else
-        Result:=Result+'<div style="border: none; padding: 5px;">'+md.process(chat.Strings[q])+'</div>';
+        Result:=Result+'<tr><td style="border: none; padding: 50px;">'+md.process(chat.Strings[q])+'</td></tr>';
     end;
-Result := '<html><head><meta charset="UTF-8"><style> .roundedBox {background-color: '+color+'; border-radius: 5px; padding: 5px} </style> </head><body style="background-color:white">'+Result+'</body></html>';
+Result := '<html><head><meta charset="UTF-8"></head><body style="background-color:white"><table style="width: 100%">'+Result+'</table></body></html>';
 end;
 procedure TChat.refreshHtml();
 var
@@ -237,7 +237,6 @@ end;
 
 function TChat.SerializeStringListToJsonArray(stringList: TStringList): TJSONArray;
 var
-  jsonString: TJSONStringType;
   jsonArray: TJSONArray;
   i:Integer;
 begin
