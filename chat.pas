@@ -5,8 +5,8 @@ unit Chat;
 interface
 
 uses
-  Classes, SysUtils,HtmlView,llama,request,MarkdownProcessor, MarkdownUtils,OptionsForm,StrUtils,
-  fpjson, jsonparser;
+  Classes, SysUtils,HtmlView, HtmlGlobals,llama,request,MarkdownProcessor, MarkdownUtils,OptionsForm,StrUtils,
+  fpjson, jsonparser,lclintf;
 
 type
      { TPersonality }
@@ -50,6 +50,7 @@ type
          {Save and load object as JSON}
          function toJson():TJSONObject;
          class function FromJSON(LJSONObject: TJSONObject): TChat;
+         procedure OnHotSpotClickEvent(Sender: TObject; const SRC: ThtString; var Handled: Boolean);
        end;
 
      {TNeuroengineService}
@@ -207,6 +208,26 @@ Case self.ServiceType of
  end;
 end;
 
+function EscapeHtml(const Input: string): string;
+var
+  CharIndex: Integer;
+  CurrentChar: Char;
+begin
+  Result := '';
+
+  for CharIndex := 1 to Length(Input) do
+  begin
+    CurrentChar := Input[CharIndex];
+
+    case CurrentChar of
+      '<': Result := Result + '&lt;';
+      '>': Result := Result + '&gt;';
+      '&': Result := Result + '&amp;';
+    else
+      Result := Result + CurrentChar;
+    end;
+  end;
+end;
 
 function TChat.buildHtmlChat(chat: Tstrings) : Unicodestring;
 var
@@ -218,7 +239,7 @@ for q:=0 to chat.Count-1 do
     begin
     str:=chat.Strings[q];
     if StartsStr('### User: ',str) then
-        Result:=Result+'<tr style="align: center;background-color: '+color+';padding: 0px"><td>'+md.process(chat.Strings[q])+'</td></tr>'
+        Result:=Result+'<tr style="align: center;background-color: '+color+';padding: 0px"><td><pre>'+EscapeHtml(RightStr(chat.Strings[q],length(chat.Strings[q])-10))+'</pre></td></tr>'
     else
       if StartsStr('<SYSTEM>',chat.Strings[q]) then
           Result:=Result+'<tr style="color:#808080;font-size: 80%;"><td>'+chat.Strings[q]+'</td></tr>'
@@ -227,12 +248,20 @@ for q:=0 to chat.Count-1 do
     end;
 Result := '<html><head><meta charset="UTF-8"></head><body style="background-color:white"><table style="width: 100%">'+Result+'</table></body></html>';
 end;
+
+procedure TChat.OnHotSpotClickEvent(Sender: TObject; const SRC: ThtString; var Handled: Boolean);
+begin
+OpenURL(SRC);
+Handled:=True;
+end;
+
 procedure TChat.refreshHtml();
 var
   html : Unicodestring;
 begin
 html := self.buildHtmlChat(self.outhtml);
 self.HTMLViewer.LoadFromString(html);
+self.HTMLViewer.OnHotSpotClick:=@OnHotSpotClickEvent;
 end;
 
 function TChat.SerializeStringListToJsonArray(stringList: TStringList): TJSONArray;

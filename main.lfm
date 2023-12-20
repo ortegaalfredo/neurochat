@@ -1,11 +1,12 @@
 object Form1: TForm1
-  Left = 2086
-  Height = 726
-  Top = 487
-  Width = 1314
+  Left = 2181
+  Height = 773
+  Top = 438
+  Width = 1431
+  ActiveControl = Panel1
   Caption = 'Neurochat'
-  ClientHeight = 726
-  ClientWidth = 1314
+  ClientHeight = 773
+  ClientWidth = 1431
   Menu = MainMenu1
   OnCreate = FormCreate
   OnDestroy = FormDestroy
@@ -15,21 +16,23 @@ object Form1: TForm1
   LCLVersion = '3.0.0.1'
   object Panel1: TPanel
     Left = 0
-    Height = 648
+    Height = 723
     Top = 0
-    Width = 1315
-    Anchors = [akTop, akLeft, akRight, akBottom]
+    Width = 1431
+    Align = alClient
+    Anchors = []
     BevelOuter = bvNone
-    ClientHeight = 648
-    ClientWidth = 1315
+    ClientHeight = 723
+    ClientWidth = 1431
     PopupMenu = PopupMenu1
     TabOrder = 0
     object PageControl1: TPageControl
       Left = 0
-      Height = 592
+      Height = 667
       Top = 56
-      Width = 1315
+      Width = 1431
       Align = alClient
+      Anchors = []
       HotTrack = True
       PopupMenu = PopupMenu1
       TabOrder = 0
@@ -41,15 +44,15 @@ object Form1: TForm1
       Left = 0
       Height = 56
       Top = 0
-      Width = 1315
+      Width = 1431
       Align = alTop
       Caption = 'Search'
       ClientHeight = 38
-      ClientWidth = 1313
+      ClientWidth = 1429
       TabOrder = 1
       Visible = False
       object BitBtnSearchLeft: TBitBtn
-        Left = 1088
+        Left = 1204
         Height = 38
         Top = 0
         Width = 91
@@ -94,7 +97,7 @@ object Form1: TForm1
         TabOrder = 0
       end
       object BitBtnSearchRight: TBitBtn
-        Left = 1179
+        Left = 1295
         Height = 38
         Top = 0
         Width = 91
@@ -142,13 +145,13 @@ object Form1: TForm1
         Left = 0
         Height = 38
         Top = 0
-        Width = 993
+        Width = 1109
         Align = alClient
         OnKeyPress = EditSearchKeyPress
         TabOrder = 2
       end
       object BitBtnSearchClose: TBitBtn
-        Left = 1270
+        Left = 1386
         Height = 38
         Top = 0
         Width = 43
@@ -233,7 +236,7 @@ object Form1: TForm1
         TabOrder = 3
       end
       object CheckBoxSearchCase: TCheckBox
-        Left = 993
+        Left = 1109
         Height = 38
         Top = 0
         Width = 95
@@ -246,13 +249,13 @@ object Form1: TForm1
     end
   end
   object Edit1: TEdit
-    Left = 16
+    Left = 0
     Height = 50
-    Top = 656
-    Width = 1288
-    Anchors = [akLeft, akRight, akBottom]
+    Top = 723
+    Width = 1431
+    Align = alBottom
+    AutoSize = False
     BorderStyle = bsNone
-    Constraints.MinHeight = 50
     OnKeyPress = LabeledEdit1KeyPress
     TabOrder = 1
     TextHint = 'Write your message'
