@@ -660,6 +660,10 @@ var
   Chat.Params := llama_model_default_params;
   LoadingVar:=0;
   Chat.Params.progress_callback:=@LlamaLoadCallback;
+    {GPU support}
+  if Settings.CheckBoxGPU.Checked then
+    Chat.Params.n_gpu_layers:=StrToIntDef(Settings.ComboBoxGPULayers.Text,2048)
+  else  Chat.Params.n_gpu_layers:=0;
   // Add a new tab sheet to the page control
   NewTabSheet := TChatTabSheet.Create(PageControl1);
   NewTabSheet.BorderStyle:=bsNone;
@@ -829,6 +833,8 @@ begin
   Log('Github: <a href=https://github.com/ortegaalfredo/neurochat>https://github.com/ortegaalfredo/neurochat</a>');
   Log('Open-source models: <a href=https://neuroengine.ai>https://neuroengine.ai</a>');
   Log('Discord: <a href=https://discord.gg/raeft3whmn>https://discord.gg/raeft3whmn</a>');
+  Log('Local AI code provided by Llama.cpp: <a href=https://github.com/ggerganov/llama.cpp>https://github.com/ggerganov/llama.cpp</a>');
+  Log('Download additionals models from TheBloke''s <a href=https://huggingface.co/TheBloke>repository</a>');
   Log('');
 end;
 

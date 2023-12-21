@@ -236,6 +236,7 @@ begin
        Response:='This local AI is not loaded. Please open the AI file first.';
        exit;
      end;
+  {Basic parameters}
   N_THREADS:=StrToIntDef(Settings.ComboBoxThreads.Text,4);
   TOP_K:= StrToIntDef(Settings.LabeledEditK.Text,40);
   TOP_P:= StrToFloatDef(Settings.LabeledEditP.Text,0.88);
@@ -244,9 +245,11 @@ begin
   TEMP:= StrToFloatDef(Settings.LabeledEditTemperature.Text, 1.0);
   SetExceptionMask(GetExceptionMask + [exOverflow,exZeroDivide,exInvalidOp]); // God dammit, llama.cpp
   llama_backend_init(False);
+  {Context Parameters}
   ctxParams:=llama_context_default_params;
   ctxParams.n_threads:=N_THREADS;
   ctxParams.n_threads_batch:=N_THREADS;
+  ctxParams.offload_kqv:=Settings.CheckBoxGPUOffloadCache.Enabled;
   Ctx:=llama_new_context_with_model(Model,ctxParams);
   max_context_size     := Min(llama_n_ctx(ctx),self.maxContextLen);
   max_tokens_list_size := max_context_size - 4;

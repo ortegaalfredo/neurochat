@@ -8,7 +8,7 @@ unit llama;
 {$macro on}
 {$ifdef windows}
   {$define LLAMACALL:=stdcall}
-  {$define LLAMALIB:='libllama.dll'}
+  {$define LLAMALIB:='llama.dll'}
 {$else}
   {$define LLAMACALL:=cdecl}
   {$define LLAMALIB:='libllama.so'}
