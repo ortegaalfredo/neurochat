@@ -153,7 +153,7 @@ type
 
   public
   const
-   version: String = '0.1-dev';
+   version: String = '0.2-dev';
   end;
 
   TChatTabSheet = class(TTabSheet)
