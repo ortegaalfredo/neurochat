@@ -7,7 +7,7 @@ interface
 uses
   Classes, SysUtils, Forms, Controls, Graphics, Dialogs, Menus, ComCtrls,
   ExtCtrls, fpjson, jsonparser, opensslsockets,OptionsForm,
-  stdctrls, Buttons, HtmlView,  Generics.Collections,
+  stdctrls, Buttons, HtmlView,  Generics.Collections, LCLType,
   request,neuroengineapi,Math,llama,chat,StrUtils,IniFiles;
 
 type
@@ -173,7 +173,13 @@ implementation
 
 destructor TChatTabSheet.Destroy;
 begin
-  FChat.Free;
+  if Chat.llamagguf<>nil then
+     begin
+     if self.Chat.requestThread<>nil then
+        self.Chat.terminateRequestThread();
+     llama_free_model(FChat.llamagguf);
+     end;
+  Chat.Free;
   inherited Destroy;
 end;
 
@@ -412,6 +418,8 @@ end;
 end;
 
 procedure TForm1.FormKeyDown(Sender: TObject; var Key: Word; Shift: TShiftState);
+var
+  Chat: TChat;
 begin
 // Handle ctrl+f
 if (ssCtrl in Shift) and (Ord('F')=Key) then
@@ -419,6 +427,12 @@ if (ssCtrl in Shift) and (Ord('F')=Key) then
      self.GroupBoxSearch.Visible:=True;
      self.EditSearch.SetFocus;
      end;
+if (Key = VK_ESCAPE) then // ESC
+ begin
+ Chat:=TChatTabSheet(PageControl1.ActivePage).Chat;
+ if Chat.requestThread<>nil then
+  Chat.requestThread.Terminate;
+ end
 end;
 
 procedure TForm1.FormShow(Sender: TObject);
@@ -451,7 +465,6 @@ end;
 
 procedure TForm1.refreshHtml(Chat:TChat);
 begin
-Chat.HTMLViewer.DoubleBuffered:=True;
 Chat.refreshHtml();
 Chat.HTMLViewer.Position:=Chat.HTMLViewer.MaxVertical;
 end;
@@ -783,13 +796,13 @@ const
                '<li><b>Open Local AI:</b>Open and use a local AI stored in your hard disk using LLama.cpp module. This requires fast hardware and enought RAM to fit the AI in memory but it allows a level of privacy and customization that other services cannot provide. Additionally, this can be used without any internet connection, but you must download the AI files to your local HDD.</li>',
                '</ul>',
                '<H2>Recommended local AIs (as of Dec 2023):</H2>If you choose to run a Local AI, you need to download the AI neural network to your local disk. The AI files are usually several gigabytes in lenght. Recommended AIs are:<ul>',
-               '<li><b>Mistral-7B</b> This is a small free AI from Mistral.ai, that still have good quality. It requires 5 GB of disk and 8GB of RAM memory. A good version of this AI is mistral-7B-finetuned-orca-dpo-v2-GGUF from TheBloke repository, that can be downloded from here: <a href="https://huggingface.co/TheBloke/mistral-7B-finetuned-orca-dpo-v2-GGUF/blob/main/mistral-7b-finetuned-orca-dpo-v2.Q4_K_M.gguf">https://huggingface.co/TheBloke/mistral-7B-finetuned-orca-dpo-v2-GGUF/blob/main/mistral-7b-finetuned-orca-dpo-v2.Q4_K_M.gguf</a></li>',
-               '<li><b>Mixtral-8x7B</b> This is a large free AI from Mistral.ai, excellent quality rivalling ChatGPT 3.5. It requires 20 GB of disk and 24GB of RAM memory. Mixtral is much slower but much higher quality than Mistral. It can be downloded from here: <a href="https://huggingface.co/TheBloke/Mixtral-8x7B-Instruct-v0.1-GGUF/resolve/main/mixtral-8x7b-instruct-v0.1.Q3_K_M.gguf">https://huggingface.co/TheBloke/Mixtral-8x7B-Instruct-v0.1-GGUF/resolve/main/mixtral-8x7b-instruct-v0.1.Q3_K_M.gguf</a></li>',
+               '<li><b>Mistral-7B</b> This is a small free AI from Mistral.ai, that still have good quality. It requires 5 GB of disk and 8GB of RAM memory. A good version of this AI is mistral-7B-finetuned-orca-dpo-v2-GGUF from TheBloke repository, that can be downloaded from here: <a href="https://huggingface.co/TheBloke/mistral-7B-finetuned-orca-dpo-v2-GGUF/blob/main/mistral-7b-finetuned-orca-dpo-v2.Q4_K_M.gguf">https://huggingface.co/TheBloke/mistral-7B-finetuned-orca-dpo-v2-GGUF/blob/main/mistral-7b-finetuned-orca-dpo-v2.Q4_K_M.gguf</a></li>',
+               '<li><b>Mixtral-8x7B</b> This is a large free AI from Mistral.ai, excellent quality rivaling ChatGPT 3.5. It requires 20 GB of disk and 24GB of RAM memory. Mixtral is much slower but much higher quality than Mistral. It can be downloded from here: <a href="https://huggingface.co/TheBloke/Mixtral-8x7B-Instruct-v0.1-GGUF/resolve/main/mixtral-8x7b-instruct-v0.1.Q3_K_M.gguf">https://huggingface.co/TheBloke/Mixtral-8x7B-Instruct-v0.1-GGUF/resolve/main/mixtral-8x7b-instruct-v0.1.Q3_K_M.gguf</a></li>',
                '<H2>Using ChatGPT API</H2>',
                'You can use ChatGPT 3.5, ChatGPT4 and any chat model from OpenAI, directly from the Neurochat app, just following those steps:<ul>',
                '<li>Register with OpenAI to acquire an API key. Note that OpenAI may charge for this service.</li>',
                '<li>After obtaining the API key from OpenAI, insert it into the “options” window, under the “ChatGPT API” tab.</li>',
-               'One advantage of using OpenAI is their assurance that your data is not utilized for training Language Learning Models (LLMs). Another benefit is gaining access to GPT4 without purchasing the GPT+ subscription - simply pay per individual query. Note that Neurochat authors are not associated with OpenAI and do not recieve any kind of compensation.',
+               'One advantage of using OpenAI is their assurance that your data is not utilized for training Language Learning Models (LLMs). Another benefit is gaining access to GPT4 without purchasing the GPT+ subscription - simply pay per individual query. Note that Neurochat authors are not associated with OpenAI and do not receive any kind of compensation.',
                '<H2>Personality</H2>',
                'You can set the personality of the AI on each individual Tab. There are several personalities available from "Assistant" (the default) to a Coder personality based on Terry Davis, and you can also create your own personality in the "Options" windows and seeting the personality as "Custom". After setting a new personality, it is recommended to reset the conversation.',
                '<H2>Additional features</H2>',
@@ -991,7 +1004,7 @@ begin
   begin
   self.AddLLamaCPPChat(OpenDialog1.FileName);
   end else
-    self.Log('No file selected, operation cancelled.');
+    self.Log('No file selected.');
     exit;
 end;
 

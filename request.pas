@@ -262,6 +262,7 @@ begin
       // main loop
     while llama_get_kv_cache_token_count(ctx) < n_gen do
         begin
+        if self.Terminated then break;
 
         llama_eval(Ctx, EmbdInp.Data, C, llama_get_kv_cache_token_count(ctx));
         EmbdInp.Clear;
@@ -317,7 +318,7 @@ begin
                        answer:=answer+#10
                   else answer:=answer+TokenStr;
                   {Update gui token by token}
-                  self.PartialAnswer:=answer;
+                  self.PartialAnswer:='<b><center>(Press ESC to stop generating)</center></b>'+answer;
                   EmbdInp.Add(token_id);
                   C:=1;
                   end;

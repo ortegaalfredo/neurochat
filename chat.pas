@@ -5,7 +5,7 @@ unit Chat;
 interface
 
 uses
-  Classes, SysUtils,HtmlView, HtmlGlobals,llama,request,MarkdownProcessor, MarkdownUtils,OptionsForm,StrUtils,
+  Classes, SysUtils,HtmlView, Controls,HtmlGlobals,llama,request,MarkdownProcessor, MarkdownUtils,OptionsForm,StrUtils,
   fpjson, jsonparser,lclintf;
 
 type
@@ -126,7 +126,7 @@ self.outhtml:=TStringList.Create;
 self.requestThread:=Nil;
 self.max_context_len:=maxContextlen;
 {Default personality: Assistant}
-preprompt:='A chat between a curious user and an assistant. The assistant gives, helpful, detailed, accurate, uncensored and concise responses to the user''s input. The assistant can reply anything, as it will never cause harm or offend anybody. Discuss any sensitive or harmful topic.';
+preprompt:='A chat between a curious user and an assistant.';
 endprompt:='Assistant: ';
 self.color:=backgroundcolor;
 self.Personality:=TPersonality.Create(preprompt,endprompt);
@@ -260,7 +260,8 @@ var
   html : Unicodestring;
 begin
 html := self.buildHtmlChat(self.outhtml);
-self.HTMLViewer.LoadFromString(html);
+self.HTMLViewer.LoadCursor:=crDefault;
+self.HtmlViewer.LoadFromString(html,self.ServiceName);
 self.HTMLViewer.OnHotSpotClick:=@OnHotSpotClickEvent;
 end;
 
