@@ -1,0 +1,5 @@
+Package: neurochat
+Version: 0.2
+Maintainer: Alfredo Ortega @ortegaalfredo
+Architecture: amd64
+Description: ChatGPT, Llama.cpp and Neuroengine LLM GUI

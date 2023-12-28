@@ -301,6 +301,7 @@ begin
             else begin
                   TokenStr:=llama_token_get_text(Model, token_id);
                   TokenStr:=StringReplace(TokenStr,'▁',' ',[rfReplaceAll]);
+                  TokenStr:=StringReplace(TokenStr,'Ġ',' ',[rfReplaceAll]);
                   if LowerCase(TokenStr)='user' then
                       break;
                   {Try to detect encoded chars, why you do this llama.cpp?}

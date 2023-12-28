@@ -37,7 +37,9 @@ object Form1: TForm1
       PopupMenu = PopupMenu1
       TabOrder = 0
       OnChange = PageControl1Change
+      OnChanging = PageControl1Changing
       OnCloseTabClicked = PageControl1CloseTabClicked
+      OnContextPopup = PageControl1ContextPopup
       Options = [nboShowCloseButtons, nboKeyboardTabSwitch, nboShowAddTabButton]
     end
     object GroupBoxSearch: TGroupBox
@@ -1219,6 +1221,9 @@ object Form1: TForm1
       }
       OnClick = MenuItemCopyClick
     end
+    object MenuItemSendTo: TMenuItem
+      Caption = 'Send selection to...'
+    end
     object Separator2: TMenuItem
       Caption = '-'
     end
@@ -1282,26 +1287,26 @@ object Form1: TForm1
         RadioItem = True
         OnClick = MenuItemBasedPersonalityClick
       end
-      object MenuItemDonaldPersonality: TMenuItem
+      object MenuItemC3POersonality: TMenuItem
         AutoCheck = True
-        Caption = 'Donald Trump'
+        Caption = 'C3PO'
         GroupIndex = 1
         RadioItem = True
-        OnClick = MenuItemDonaldPersonalityClick
+        OnClick = MenuItemC3POersonalityClick
       end
-      object MenuItemJoePersonality: TMenuItem
+      object MenuItemBorgesPersonality: TMenuItem
         AutoCheck = True
-        Caption = 'Joe Biden'
+        Caption = 'Writer (Borges)'
         GroupIndex = 1
         RadioItem = True
-        OnClick = MenuItemJoePersonalityClick
+        OnClick = MenuItemBorgesPersonalityClick
       end
-      object MenuItemBenderPersonality: TMenuItem
+      object MenuItemCoderPersonality: TMenuItem
         AutoCheck = True
         Caption = 'Coder'
         GroupIndex = 1
         RadioItem = True
-        OnClick = MenuItemBenderPersonalityClick
+        OnClick = MenuItemCoderPersonalityClick
       end
       object MenuItemCustomPersonality: TMenuItem
         Caption = 'Custom...'
@@ -1348,6 +1353,7 @@ object Form1: TForm1
         FF00FFFFFF00FFFFFF00D4AA00DFD4AA00FFD4AA00FFD4AA00FFD4AA00FFD4AA
         00FDD3AB0040FFFFFF00FFFFFF00FFFFFF00FFFFFF00FFFFFF00
       }
+      OnClick = MenuItem21Click
       object MenuItemPZ25: TMenuItem
         AutoCheck = True
         Caption = 'Zoom: 25%'
@@ -1386,7 +1392,7 @@ object Form1: TForm1
       end
     end
     object MenuItemReset: TMenuItem
-      Caption = 'Reset conversation'
+      Caption = 'Reset Conversation'
       Bitmap.Data = {
         36040000424D3604000000000000360000002800000010000000100000000100
         2000000000000004000064000000640000000000000000000000FFFFFF00FFFF

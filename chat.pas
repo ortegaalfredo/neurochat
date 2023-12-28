@@ -73,7 +73,7 @@ constructor TPersonality.Create(const pprompt:String;const eprompt:String);
 begin
   self.preprompt:=pprompt;
   self.endprompt:=eprompt;
-  self.name:='Assistant';
+  self.name:='assistant';
 end;
 
 function TPersonality.ToJSON: TJSONObject;
