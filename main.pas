@@ -656,14 +656,21 @@ end;
 procedure LlamaLoadCallback(progress:single; ctx:pointer);cdecl;
 var
   i:Integer;
+  Chat: TChat;
+  cap:String;
 begin
+if (Form1.PageControl1.ActivePage=Nil) then
+   exit;
+Chat:=TChatTabSheet(Form1.PageControl1.ActivePage).Chat;
 LoadingVar:=LoadingVar+1;
+{Draw loading bar}
 if (LoadingVar>20) then
    begin
-   Form1.log('Loading...'+IntToStr(Round(progress*100))+'%');
-   Sleep(100);
-   Form1.Invalidate;
-   Form1.Update;
+   Chat.outhtml.Delete(Chat.outhtml.Count-1);
+   cap:='Loading...'+IntToStr(Round(progress*100))+'%';
+   Chat.outhtml.Add('<table width=100% style="border: 2px solid black; color: #ffffff;"><tr><td style="width: '+IntToStr(Round(progress*100))+'%; background-color: black;" valign="top">'+cap+'</td><td style="background-color: transparent;" valign="top"></td></tr></table>');
+   Form1.refreshHtml(Chat);
+   Application.HandleMessage;
    LoadingVar:=0;
    end
 end;
@@ -706,6 +713,8 @@ var
   NewTabSheet.Chat:=Chat;
   PageControl1.ActivePage:=NewTabSheet;
   // Load model
+  Form1.log('Loading '+Model);
+  Application.HandleMessage;
   Chat.llamagguf := llama_load_model_from_file(PChar(Model), Chat.Params);
   if Chat.llamagguf = nil then
      begin
@@ -714,7 +723,10 @@ var
      exit;
      //raise Exception.Create('Failed to load model');
      end
-  else log('Model '+NewTabSheet.Caption+' loaded.');
+  else begin
+       NewTabSheet.Chat.outhtml.Delete(NewTabSheet.Chat.outhtml.Count-1);
+       log('Model '+NewTabSheet.Caption+' loaded.');
+       end
 
   end;
 

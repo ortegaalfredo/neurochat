@@ -1296,7 +1296,7 @@ object Form1: TForm1
       end
       object MenuItemBorgesPersonality: TMenuItem
         AutoCheck = True
-        Caption = 'Writer (Borges)'
+        Caption = 'Writer'
         GroupIndex = 1
         RadioItem = True
         OnClick = MenuItemBorgesPersonalityClick
