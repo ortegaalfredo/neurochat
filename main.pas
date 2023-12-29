@@ -89,6 +89,7 @@ type
 
     // Simple Chats
     procedure AddNeuroengineChat(ServiceIndex:Integer);
+    procedure LoadModelFromFile(Chat: TChat;Model:string);
     procedure AddLLamaCPPChat(Model:string);
     procedure AddChatGPTChat(Model:string);
     procedure BitBtnSearchCloseClick(Sender: TObject);
@@ -139,6 +140,7 @@ type
       var Handled: Boolean);
     procedure refreshHtml(Chat:TChat);
     procedure sendTextToAI(Chat: TChat;txt:String);
+    procedure InitForm(autosave:Boolean;maxCtxLen:Integer);
     procedure FormCreate(Sender: TObject);
     procedure LabeledEdit1KeyPress(Sender: TObject; var Key: char);
     procedure MenuItem11Click(Sender: TObject);
@@ -160,7 +162,7 @@ type
 
   public
   const
-   version: String = '0.2-dev';
+   version: String = '0.3-dev';
   end;
 
   TChatTabSheet = class(TTabSheet)
@@ -322,10 +324,9 @@ begin
    end;
 end;
 
-
-
-procedure TForm1.FormCreate(Sender: TObject);
+procedure TForm1.InitForm(autosave:Boolean;maxCtxLen:Integer);
 var
+  sFileName:String;
   Fs: TFileStream;
   P: TJSONParser;
   J: TJSONData;
@@ -334,13 +335,64 @@ var
   chat:TChat;
   i:Integer;
   NewTabSheet: TChatTabSheet;
+
+begin
+sFileName := GetUserDir+'/.neurochat.history';
+
+if (not FileExists(sFileName)) or (not autosave) then
+     self.AddNeuroengineChat(-1)
+else begin { Load tabs from history file }
+   Fs := TFileStream.Create(sFileName, fmopenRead);
+   try
+     P := TJSONParser.Create(Fs);
+     try
+       J := P.Parse;
+       if Assigned(J) then
+          begin
+          chatArray:= TJSONArray(J.FindPath('Chats'));
+          for I := 0 to chatArray.Count -1 do
+              begin
+              chatjs:=TJSONObject(chatArray[I]);
+              chat:=TChat.FromJSON(chatjs);
+              // Add a new tab sheet to the page control
+              NewTabSheet := TChatTabSheet.Create(PageControl1);
+              NewTabSheet.BorderStyle:=bsNone;
+              NewTabSheet.PageControl:=PageControl1;
+              NewTabSheet.Caption:=ExtractFileName(chat.ServiceName);
+              NewTabSheet.Tag:=0;
+              chat.max_context_len:=maxCtxLen;
+              // Allocate new ChatStruct
+//                Chat.ServiceIndex:=0;
+              Chat.HtmlViewer := THtmlViewer.Create(NewTabSheet);
+              Chat.HtmlViewer.BorderStyle:=htNone;
+              Chat.HtmlViewer.Parent:=NewTabSheet;
+              Chat.HtmlViewer.ScrollBars:=ssVertical;
+              Chat.HtmlViewer.Align:=TAlign.alClient;
+              Chat.HtmlViewer.DefFontSize:=self.currentzoom;
+              NewTabSheet.Chat:=chat;
+              chat.refreshHtml();
+              Application.HandleMessage;
+              end
+          end;
+     finally
+//         if Assigned(J) then
+//            J.Free;
+       P.Free;
+       end;
+   finally
+      Fs.Free;
+      end;
+  end;
+end;
+
+procedure TForm1.FormCreate(Sender: TObject);
+var
   IniFile: TIniFile;
   autosave:Boolean;
   maxCtxLen:Integer;
   sFileName:String;
 begin
-self.DoubleBuffered:=True;
-sFileName := GetUserDir+'/.neurochat.history';
+//self.DoubleBuffered:=True;
 self.connected:=False;
 self.KeyPreview:=True;
 {Read config file}
@@ -379,49 +431,6 @@ try
 finally
   IniFile.Free;
 end;
-    if (not FileExists(sFileName)) or (not autosave) then
-       self.AddNeuroengineChat(-1)
-    else begin { Load tabs from history file }
-     Fs := TFileStream.Create(sFileName, fmopenRead);
-     try
-       P := TJSONParser.Create(Fs);
-       try
-         J := P.Parse;
-         if Assigned(J) then
-            begin
-            chatArray:= TJSONArray(J.FindPath('Chats'));
-            for I := 0 to chatArray.Count -1 do
-                begin
-                chatjs:=TJSONObject(chatArray[I]);
-                chat:=TChat.FromJSON(chatjs);
-                // Add a new tab sheet to the page control
-                NewTabSheet := TChatTabSheet.Create(PageControl1);
-                NewTabSheet.BorderStyle:=bsNone;
-                NewTabSheet.PageControl:=PageControl1;
-                NewTabSheet.Caption:=chat.ServiceName;
-                NewTabSheet.Tag:=0;
-                chat.max_context_len:=maxCtxLen;
-                // Allocate new ChatStruct
-//                Chat.ServiceIndex:=0;
-                Chat.HtmlViewer := THtmlViewer.Create(NewTabSheet);
-                Chat.HtmlViewer.BorderStyle:=htNone;
-                Chat.HtmlViewer.Parent:=NewTabSheet;
-                Chat.HtmlViewer.ScrollBars:=ssVertical;
-                Chat.HtmlViewer.Align:=TAlign.alClient;
-                Chat.HtmlViewer.DefFontSize:=self.currentzoom;
-                NewTabSheet.Chat:=chat;
-                chat.refreshHtml();
-                end
-            end;
-       finally
-//         if Assigned(J) then
-//            J.Free;
-         P.Free;
-         end;
-     finally
-        Fs.Free;
-        end;
-    end;
 end;
 
 procedure TForm1.FormKeyDown(Sender: TObject; var Key: Word; Shift: TShiftState);
@@ -478,6 +487,16 @@ end;
 
 procedure TForm1.sendTextToAI(Chat: TChat;txt:String);
 begin
+if Chat.ServiceType = AIT_LlamaCPP then
+   begin
+   if Chat.llamagguf = nil then
+      self.LoadModelFromFile(Chat,Chat.ServiceName);
+   if Chat.llamagguf = nil then
+      begin
+      self.Log('Failed to load model from '+Chat.ServiceName);
+      exit;
+      end;
+   end;
 Chat.outhtml.Add('### User: '+txt);
 Chat.outhtml.Add('AI is typing...');
 Chat.Chatlines.Add('User: '+txt);
@@ -573,6 +592,7 @@ var
 begin
 if self.connected=False then
    begin
+   self.InitForm(settings.CheckBoxAutosave.Checked,StrToIntDef(settings.LabeledEditMaxLen.Text,1024));
    self.ConnectNeuroengine();
    if length(self.neuroEngines)>0 then
       log('Connected successfuly. Ready to chat.')
@@ -675,6 +695,31 @@ if (LoadingVar>20) then
    end
 end;
 
+procedure TForm1.LoadModelFromFile(Chat: TChat;Model:string);
+begin
+SetExceptionMask(GetExceptionMask + [exOverflow,exZeroDivide,exInvalidOp]); // God dammit, llama.cpp
+llama_backend_init(False);
+Chat.Params := llama_model_default_params;
+Chat.Params.progress_callback:=@LlamaLoadCallback;
+  {GPU support}
+if Settings.CheckBoxGPU.Checked then
+  Chat.Params.n_gpu_layers:=StrToIntDef(Settings.ComboBoxGPULayers.Text,2048)
+else  Chat.Params.n_gpu_layers:=0;
+Form1.log('Loading '+Model);
+Application.HandleMessage;
+Chat.llamagguf := llama_load_model_from_file(PChar(Model), Chat.Params);
+if Chat.llamagguf = nil then
+   begin
+   log('Failed to load model '+Model);
+   exit;
+   end
+else begin
+     Chat.outhtml.Delete(Chat.outhtml.Count-1);
+     log('Model '+ExtractFileName(Model)+' loaded. <b>Ready to chat.</b>');
+     end
+
+end;
+
 procedure TForm1.AddLLamaCPPChat(Model:string);
 var
   NewTabSheet: TChatTabSheet;
@@ -687,47 +732,25 @@ var
   maxContextLen:=Min(512,StrToIntDef(Settings.LabeledEditMaxLen.Text,1024));
   Chat:= TChat.Create(Model,AIT_LlamaCPP,'#ffefd1',maxContextLen);
   // Load GGUF
-  SetExceptionMask(GetExceptionMask + [exOverflow,exZeroDivide,exInvalidOp]); // God dammit, llama.cpp
-  llama_backend_init(False);
-  Chat.Params := llama_model_default_params;
   LoadingVar:=0;
-  Chat.Params.progress_callback:=@LlamaLoadCallback;
-    {GPU support}
-  if Settings.CheckBoxGPU.Checked then
-    Chat.Params.n_gpu_layers:=StrToIntDef(Settings.ComboBoxGPULayers.Text,2048)
-  else  Chat.Params.n_gpu_layers:=0;
   // Add a new tab sheet to the page control
   NewTabSheet := TChatTabSheet.Create(PageControl1);
   NewTabSheet.BorderStyle:=bsNone;
   NewTabSheet.PageControl:=PageControl1;
   NewTabSheet.Caption:=ExtractFileName(Model);
-  Chat.ServiceName:=ExtractFileName(Model);
+  NewTabSheet.Chat:=Chat;
+  PageControl1.ActivePage:=NewTabSheet;
+  Chat.ServiceName:=Model;//ExtractFileName(Model);
   Chat.HtmlViewer := THtmlViewer.Create(NewTabSheet);
   Chat.HtmlViewer.BorderStyle:=htNone;
   Chat.HtmlViewer.Parent:=NewTabSheet;
   Chat.HtmlViewer.ScrollBars:=ssVertical;
   Chat.HtmlViewer.Align:=TAlign.alClient;
   Chat.HtmlViewer.DefFontSize:=self.currentzoom;
-  NewTabSheet.DoubleBuffered:=True;
-
-  NewTabSheet.Chat:=Chat;
-  PageControl1.ActivePage:=NewTabSheet;
   // Load model
-  Form1.log('Loading '+Model);
-  Application.HandleMessage;
-  Chat.llamagguf := llama_load_model_from_file(PChar(Model), Chat.Params);
+  self.LoadModelFromFile(Chat,Model);
   if Chat.llamagguf = nil then
-     begin
-     log('Failed to load model '+NewTabSheet.Caption);
      Chat.Free;
-     exit;
-     //raise Exception.Create('Failed to load model');
-     end
-  else begin
-       NewTabSheet.Chat.outhtml.Delete(NewTabSheet.Chat.outhtml.Count-1);
-       log('Model '+NewTabSheet.Caption+' loaded.');
-       end
-
   end;
 
 procedure TForm1.AddChatGPTChat(Model:string);
@@ -1220,7 +1243,7 @@ if PageControl1.ActivePage <> nil then
           Chat:=TChatTabSheet(PageControl1.Pages[i]).Chat;
           mi:=TMenuItem.Create(self);
           mi.OnClick:=@self.sendToClick;
-          mi.Caption:='Tab '+IntToStr(i)+' - '+Chat.ServiceName+' ('+Chat.Personality.Name+')';
+          mi.Caption:='Tab '+IntToStr(i)+' - '+ExtractFileName(Chat.ServiceName)+' ('+Chat.Personality.Name+')';
           mi.Tag:=i;
           self.MenuItemSendTo.Add(mi);
           end;
