@@ -11,7 +11,6 @@ object Form1: TForm1
   OnCreate = FormCreate
   OnDestroy = FormDestroy
   OnKeyDown = FormKeyDown
-  OnShow = FormShow
   Position = poScreenCenter
   LCLVersion = '3.0.0.1'
   object Panel1: TPanel
@@ -36,8 +35,6 @@ object Form1: TForm1
       HotTrack = True
       PopupMenu = PopupMenu1
       TabOrder = 0
-      OnChange = PageControl1Change
-      OnChanging = PageControl1Changing
       OnCloseTabClicked = PageControl1CloseTabClicked
       OnContextPopup = PageControl1ContextPopup
       Options = [nboShowCloseButtons, nboKeyboardTabSwitch, nboShowAddTabButton]
@@ -994,7 +991,6 @@ object Form1: TForm1
         0000D4AA00FFD4AA00FFD4AA00FFD4AA00FFD4AA00FFD4AA00FFD4AA00FFD4A9
         00FAD3AB00400000000000000000000000000000000000000000
       }
-      OnClick = MenuItem11Click
       object MenuNeuroengine: TMenuItem
         Caption = 'Neuroengine'
         Bitmap.Data = {

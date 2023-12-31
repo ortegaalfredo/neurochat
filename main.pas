@@ -12,7 +12,12 @@ uses
 
 type
 
-{ TForm1 }
+  //---------------------------------------------------------------------------
+  // TForm1 - Main Form of Neurochat
+  // Author: aortega
+  // Description: Represents the main window of our application containing various
+  //              UI components required for interaction with end-users.
+  //---------------------------------------------------------------------------
 
   TForm1 = class(TForm)
     BitBtnSearchLeft: TBitBtn;
@@ -102,7 +107,6 @@ type
     procedure EditSearchKeyPress(Sender: TObject; var Key: char);
     procedure FormDestroy(Sender: TObject);
     procedure FormKeyDown(Sender: TObject; var Key: Word; Shift: TShiftState);
-    procedure FormShow(Sender: TObject);
     procedure Log(str: String);
     procedure AddLLM(LLM: string; serviceIndex: Integer);
     procedure MenuItem10Click(Sender: TObject);
@@ -131,10 +135,8 @@ type
     procedure MenuItemZ25Click(Sender: TObject);
     procedure MenuItemZ50Click(Sender: TObject);
     procedure MenuNeuroengineClick(Sender: TObject);
-    procedure MenuItem18Click(Sender: TObject);
     procedure MenuItem7Click(Sender: TObject);
     procedure MenuItemOptionsClick(Sender: TObject);
-    procedure PageControl1Changing(Sender: TObject; var AllowChange: Boolean);
     procedure PageControl1CloseTabClicked(Sender: TObject);
     procedure PageControl1ContextPopup(Sender: TObject; MousePos: TPoint;
       var Handled: Boolean);
@@ -143,16 +145,10 @@ type
     procedure InitForm(autosave:Boolean;maxCtxLen:Integer);
     procedure FormCreate(Sender: TObject);
     procedure LabeledEdit1KeyPress(Sender: TObject; var Key: char);
-    procedure MenuItem11Click(Sender: TObject);
-    procedure MenuItemCutClick(Sender: TObject);
     procedure MenuItemCopyClick(Sender: TObject);
-    procedure MenuItemPasteClick(Sender: TObject);
     procedure MenuItem16Click(Sender: TObject);
-    procedure MenuItem5Click(Sender: TObject);
     procedure MenuItemResetClick(Sender: TObject);
-    procedure PageControl1Change(Sender: TObject);
     procedure Timer1Timer(Sender: TObject);
-    procedure TreeView1SelectionChanged(Sender: TObject);
     procedure SendToClick(Sender: TObject);
   private
     connected:boolean;
@@ -165,13 +161,21 @@ type
    version: String = '0.3-dev';
   end;
 
+  { Defines a custom tab sheet component that maintains a relation
+    with instances of the TChat class. Inherits functionality from the
+    standard VCL TTabSheet component. }
   TChatTabSheet = class(TTabSheet)
-   private
-     FChat: TChat;
-   public
-     destructor Destroy; override;
-     property Chat: TChat read FChat write FChat;
-   end;
+  private
+    { Declares a private field holding a reference to a TChat instance. }
+    FChat: TChat;
+  public
+    { Provides external accessibility to the internal FChat field via
+      a public property. }
+    property Chat: TChat read FChat write FChat;
+    { Overrides the default destructor inherited from the base class
+      to perform additional clean-up tasks before freeing the object. }
+    destructor Destroy; override;
+  end;
 
 var
   Form1: TForm1;
@@ -179,7 +183,12 @@ var
 implementation
 
 {$R *.lfm}
-
+{
+  Performs cleanup tasks related to the current instance of TChatTabSheet.
+  Frees allocated resources such as the Llama model and its associated thread,
+  followed by releasing the Chat object itself.
+  Finally invokes the parent class's destructor.
+}
 destructor TChatTabSheet.Destroy;
 begin
   if Chat.llamagguf<>nil then
@@ -194,7 +203,13 @@ end;
 
 { TForm1 }
 
-// Add a LLM from Neuroengine as a menu item
+{
+  Dynamically generates and appends new menu items representing each available model/service
+  obtained from the connected Neuroengine platform.
+  These menu items include specific actions tied to their respective OnClick events.
+  @param LLM [string]: Name of the model/service to add as a menu item.
+  @param serviceIndex [integer]: Index number assigned to the particular model/service.
+}
 procedure TForm1.AddLLM(LLM: string; serviceIndex: Integer);
 var
   AddMenuItem:TMenuItem;
@@ -214,6 +229,13 @@ AddMenuItem.OnClick:=@MenuNeuroengineClick;
 MenuItemMainNe.Add(AddMenuItem);
 end;
 
+{
+  Attempts connecting to the specified API endpoint using provided JSON data.
+  Upon successful connection, retrieves available models/services information and
+  populates corresponding class properties accordingly.
+  Also adds menu items based on received details.
+  @param None
+}
 procedure TForm1.ConnectNeuroengine();
 var
   JSONToSend: string;
@@ -263,9 +285,6 @@ try
         // Add Menu items
         LogString:=LogString+' '+LLMName+',';
         self.AddLLM(LLMName,I);
-        // NewNode:=self.TreeView1.Items.Add(nil, LLMName);
-        // Add a child node under the root node
-        // self.TreeView1.Items.AddChild(NewNode, RenderHTML2Text(LLMComment));
       end;
   // Clean up
   JSONData.Free;
@@ -275,10 +294,13 @@ except
   on E: Exception do
     log('Cannot connect to Neuroengine.ai site: '+ E.Message);
 end;
-//if TreeView1.Items.Count>0 then
-//   TreeView1.Selected:=TreeView1.Items[0];
-
 end;
+
+{
+  Intercepts ENTER and ESC keys pressed inside EditSearch text box.
+  When ENTER is hit, triggers BitBtnSearchRight click action which typically
+  initiates search operation. Hides GroupBoxSearch containing edit field when ESC is pressed.
+}
 
 procedure TForm1.EditSearchKeyPress(Sender: TObject; var Key: char);
 begin
@@ -292,7 +314,11 @@ begin
    end
 end;
 
-{ Save all tabs on destroy }
+{
+  Serializes all existing conversation histories into a single JSON string before
+  saving them to a local .neurochat.history file.
+  This ensures that future application launches are able to restore these sessions correctly.
+}
 procedure TForm1.FormDestroy(Sender: TObject);
 var
   Chat: TChat;
@@ -324,6 +350,14 @@ begin
    end;
 end;
 
+{
+  Loads previous conversations from JSON files saved locally.
+  If no valid JSON is found or 'autosave' flag is false, creates a blank slate instead.
+  Each loaded chat object gets associated with a new Tab Sheet within Page Control component.
+  @param autosave [Boolean]: Flag determining whether previously saved chats need to be restored.
+  @param maxCtxLen [Integer]: Maximum context length value read from the INI file.
+}
+
 procedure TForm1.InitForm(autosave:Boolean;maxCtxLen:Integer);
 var
   sFileName:String;
@@ -341,7 +375,7 @@ sFileName := GetUserDir+'/.neurochat.history';
 
 if (not FileExists(sFileName)) or (not autosave) then
      self.AddNeuroengineChat(-1)
-else begin { Load tabs from history file }
+else begin
    Fs := TFileStream.Create(sFileName, fmopenRead);
    try
      P := TJSONParser.Create(Fs);
@@ -362,11 +396,9 @@ else begin { Load tabs from history file }
               NewTabSheet.Tag:=0;
               chat.max_context_len:=maxCtxLen;
               // Allocate new ChatStruct
-//                Chat.ServiceIndex:=0;
               Chat.HtmlViewer := THtmlViewer.Create(NewTabSheet);
               Chat.HtmlViewer.BorderStyle:=htNone;
               Chat.HtmlViewer.Parent:=NewTabSheet;
-              Chat.HtmlViewer.ScrollBars:=ssVertical;
               Chat.HtmlViewer.Align:=TAlign.alClient;
               Chat.HtmlViewer.DefFontSize:=self.currentzoom;
               NewTabSheet.Chat:=chat;
@@ -375,8 +407,6 @@ else begin { Load tabs from history file }
               end
           end;
      finally
-//         if Assigned(J) then
-//            J.Free;
        P.Free;
        end;
    finally
@@ -384,7 +414,11 @@ else begin { Load tabs from history file }
       end;
   end;
 end;
-
+{
+  Initializes properties when creating the form instance. Reads configuration values
+  stored in neurochat.ini related to auto-save functionality, default zoom level,
+  maximum context length limit, and initial UI state. Sets up GUI components accordingly.
+}
 procedure TForm1.FormCreate(Sender: TObject);
 var
   IniFile: TIniFile;
@@ -433,6 +467,14 @@ finally
 end;
 end;
 
+{
+  Monitors keyboard inputs while focused on Form1. Handles specific combinations
+  like CTRL + F, CTRL + C and ESC keys with corresponding actions.
+  Terminates ongoing AI request threads upon pressing ESC.
+  @param Sender [TObject]: Object responsible for triggering the event.
+  @param Key [Word]: Numeric code assigned to the detected keystroke.
+  @param Shift [TShiftState]: Enum indicating active modifier keys during the event.
+}
 procedure TForm1.FormKeyDown(Sender: TObject; var Key: Word; Shift: TShiftState);
 var
   Chat: TChat;
@@ -443,6 +485,12 @@ if (ssCtrl in Shift) and (Ord('F')=Key) then
      self.GroupBoxSearch.Visible:=True;
      self.EditSearch.SetFocus;
      end;
+// Handle ctrl+c
+if (ssCtrl in Shift) and (Ord('C')=Key) then
+     begin
+     self.MenuItemCopyClick(nil);
+     end;
+
 if (Key = VK_ESCAPE) then // ESC
  begin
  Chat:=TChatTabSheet(PageControl1.ActivePage).Chat;
@@ -451,13 +499,16 @@ if (Key = VK_ESCAPE) then // ESC
  end
 end;
 
-procedure TForm1.FormShow(Sender: TObject);
-begin
 
-end;
-
-
-// Build airoboros-style chat
+{
+  Constructs a Vicuna-styled chat prompt using given parameters such as conversation history,
+  prefixes, suffixes, and maximum context length. Returns the finalized prompt as a single string.
+  @param chat [TStrings]: Collection of strings representing individual chat entries.
+  @param preprompt [String]: Prefix to be applied at the beginning of the constructed prompt.
+  @param endprompt [String]: Delimiter inserted between each entry in the constructed prompt.
+  @param maxContext [Integer]: Maximum allowed number of characters in the resulting prompt.
+}
+// Build vicuna-style chat
 function buildChatPrompt(chat: Tstrings;preprompt:String;endprompt:String;maxContext:Integer) : string;
 var
 prompt: string;
@@ -478,12 +529,24 @@ buildChatPrompt:=preprompt+prompt;
 
 end;
 
+{
+  Updates the visual appearance of the provided HTML viewer based on its underlying data structure. Scrolls the viewport to the bottom allowing users to see newly generated content immediately.
+  @param Chat [TChat]: Instance of the chat session whose HTML Viewer should be updated.
+}
 
 procedure TForm1.refreshHtml(Chat:TChat);
 begin
 Chat.refreshHtml();
 Chat.HTMLViewer.Position:=Chat.HTMLViewer.MaxVertical;
 end;
+
+{
+  Prepares and initiates request to send user-provided text to the appropriate AI backend.
+  Creates a prompt string containing previous messages and custom prefix/suffix prompts defined in Personality settings.
+  Cancels existing requests prior to starting a new one.
+  @param Chat [TChat]: Instance of the chat session being updated.
+  @param txt [String]: Input text submitted by the user.
+}
 
 procedure TForm1.sendTextToAI(Chat: TChat;txt:String);
 begin
@@ -508,6 +571,10 @@ Chat.requestThread.PromptToAnswer:=buildChatPrompt(Chat.chatlines,Chat.Personali
 Chat.requestThread.Start;
 end;
 
+{
+  Intercepts ENTER key press events within Edit1 component. When triggered, sends entered text to the connected AI,
+  clears Edit1 field, and refreshes the current chat tab's HtmlViewer component.
+}
 procedure TForm1.LabeledEdit1KeyPress(Sender: TObject; var Key: char);
 var
   Chat: TChat;
@@ -523,6 +590,11 @@ if (Key = #13) then // Enter key is represented by ASCII value of 13, so check f
    end;
 end;
 
+{
+  Appends a message to the output text area of the currently selected chat tab. Automatically refreshes the HtmlViewer component after updating.
+  @param str [String]: Text to be added into the chat window.
+}
+
 procedure TForm1.Log(str: String);
 var
   Chat: TChat;
@@ -534,28 +606,15 @@ Chat.outhtml.Add('<SYSTEM> '+str);
 self.refreshHtml(Chat);
 end;
 
-
-procedure TForm1.MenuItem11Click(Sender: TObject);
-begin
-
-end;
-
-procedure TForm1.MenuItemCutClick(Sender: TObject);
-begin
-end;
-
+{
+  Copies the content of the currently selected chat tab's HtmlViewer component to clipboard.
+}
 procedure TForm1.MenuItemCopyClick(Sender: TObject);
 var
   ChatTabSheet: TChatTabSheet;
 begin
-self.PageControl1.ActivePage;
 ChatTabSheet:=TChatTabSheet(PageControl1.ActivePage);
 ChatTabSheet.FChat.HtmlViewer.CopyToClipboard;
-end;
-
-procedure TForm1.MenuItemPasteClick(Sender: TObject);
-begin
-
 end;
 
 procedure TForm1.MenuItem16Click(Sender: TObject);
@@ -564,11 +623,10 @@ begin
    self.EditSearch.SetFocus;
 end;
 
-procedure TForm1.MenuItem5Click(Sender: TObject);
-begin
 
-end;
-
+{
+  Clears all chat lines and output text in currently selected chat tab. Refreshes the associated HtmlViewer component.
+}
 procedure TForm1.MenuItemResetClick(Sender: TObject);
 var
   ChatTabSheet: TChatTabSheet;
@@ -580,11 +638,9 @@ ChatTabSheet.Chat.outhtml.Clear;
 self.refreshHtml(ChatTabSheet.FChat);
 end;
 
-procedure TForm1.PageControl1Change(Sender: TObject);
-begin
-
-end;
-
+{
+  Function executed periodically when timer expires. Maintains connections and updates UI components displaying AI responses.
+}
 procedure TForm1.Timer1Timer(Sender: TObject);
 var
   Chat: TChat;
@@ -628,6 +684,7 @@ for i := 0 to PageControl1.PageCount - 1 do
      end;
 end;
 
+{Procedure adding a NeuroEngine chat tab with specified service by index}
 procedure TForm1.AddNeuroengineChat(ServiceIndex:Integer);
 var
   NewTabSheet: TChatTabSheet;
@@ -673,6 +730,11 @@ if ServiceIndex>=0 then
    Log(self.neuroEngines[ServiceIndex].comment);
 end;
 
+{
+  Event handler function that receives progress updates during the model loading
+  phase via callback mechanism. This method calculates the percentage of completed work
+  and visually reflects its advancement within the active chat session's loading bar element.
+}
 procedure LlamaLoadCallback(progress:single; ctx:pointer);cdecl;
 var
   i:Integer;
@@ -695,6 +757,12 @@ if (LoadingVar>20) then
    end
 end;
 
+{
+  Loads a specific LLAMA language model residing in a designated file using the
+  supplied Chat instance. Before initiating the actual loading process,
+  it prepares the environment by enabling exception handling and fine-tuning parameters based on user preferences,
+  e.g., GPU layer count.
+}
 procedure TForm1.LoadModelFromFile(Chat: TChat;Model:string);
 begin
 SetExceptionMask(GetExceptionMask + [exOverflow,exZeroDivide,exInvalidOp]); // God dammit, llama.cpp
@@ -720,6 +788,10 @@ else begin
 
 end;
 
+{
+  Constructs a new tab sheet dedicated to hosting a LLAMA-based chat interface inside
+  the primary PageControl component.
+}
 procedure TForm1.AddLLamaCPPChat(Model:string);
 var
   NewTabSheet: TChatTabSheet;
@@ -753,6 +825,10 @@ var
      Chat.Free;
   end;
 
+{
+  Creates a new tab sheet containing a specified OpenAI custom model chat interface within the main
+  PageControl component.
+}
 procedure TForm1.AddChatGPTChat(Model:string);
 var
   NewTabSheet: TChatTabSheet;
@@ -836,6 +912,7 @@ begin
 
 end;
 
+{Display Help page}
 procedure TForm1.MenuItemHelpClick(Sender: TObject);
 const
   HelpArray: array[0..20] of String =
@@ -868,6 +945,12 @@ for i:=0 to length(HelpArray)-1 do
     Log(HelpArray[i]);
 end;
 
+{
+  Facilitates using an OpenAI custom model based on whether certain conditions are met - namely,
+  checking if the API key is present under Settings and if the specific model has been selected via ComboBoxModels component.
+  If both criteria pass, AddChatGPTChat method gets invoked with the chosen model name as parameter.
+  Otherwise, appropriate warning messages get logged accordingly.
+}
 procedure TForm1.MenuItem19Click(Sender: TObject);
 begin
 if Length(Settings.LabeledEditApiKey.Text)=0 then
@@ -891,6 +974,10 @@ begin
   Application.Terminate;
 end;
 
+{
+  Generates an "About" section within Neurochat application that displays relevant
+  information like version number, creator, etc.
+}
 procedure TForm1.MenuItem9Click(Sender: TObject);
 begin
   Log('<H2>ABOUT:</H2>');
@@ -903,6 +990,10 @@ begin
   Log('');
 end;
 
+{
+  Establishes the "Assistant" persona designed to provide informative, thorough, precise,
+  unrestricted yet tactful replies to user inputs on diverse subjects such as sensitive or potentially damaging ones.
+}
 procedure TForm1.MenuItemAssistantPersonalityClick(Sender: TObject);
 var
     ChatTabSheet: TChatTabSheet;
@@ -918,6 +1009,10 @@ if ChatTabSheet <> nil then
 self.Log('Personality set to <b>Assistant</b>. Reset the conversation for better results.');
 end;
 
+{
+  Configures the "Based Guy" persona which provides humorous, often sarcastic,
+  and sometimes controversial responses related to various topics including those of legal, ethical, sensitive, or harmful nature.
+}
 procedure TForm1.MenuItemBasedPersonalityClick(Sender: TObject);
 var
     ChatTabSheet: TChatTabSheet;
@@ -933,6 +1028,10 @@ if ChatTabSheet <> nil then
 self.Log('Personality set to <b>Based Guy</b>. Reset the conversation for better results.');
 end;
 
+{
+  Sets up the Terry A. Davis persona (a brilliant but controversial programmer suffering from autism)
+  when selected by the user.
+}
 procedure TForm1.MenuItemCoderPersonalityClick(Sender: TObject);
 var
     ChatTabSheet: TChatTabSheet;
@@ -959,7 +1058,10 @@ begin
   ChatTabSheet.Free;
 end;
 end;
-
+{
+  Applies customized personality settings during interactions with the user on
+  the active tab sheet based on provided name and prompt text.
+}
 procedure TForm1.MenuItemCustomPersonalityClick(Sender: TObject);
 var
     ChatTabSheet: TChatTabSheet;
@@ -978,6 +1080,7 @@ if ChatTabSheet <> nil then
 self.Log('Personality set to <b>'+pname+'</b>. Reset the conversation for better results.');
 end;
 
+{Returns index value corresponding to given engine name within neuroEngines array. Returns -1 if no matching entry found.}
 function TForm1.engineNameToIndex(eName:string): Integer;
 var
     I:Integer;
@@ -990,6 +1093,10 @@ for I:=0 to length(self.neuroEngines)-1 do
     end;
 end;
 
+{
+  Resets the behavior of the AI model back to its default settings while interacting
+  with the user on the active tab sheet.
+}
 procedure TForm1.MenuItemDefaultPersonalityClick(Sender: TObject);
 var
     ChatTabSheet: TChatTabSheet;
@@ -1033,6 +1140,11 @@ if ChatTabSheet <> nil then
 self.Log('Personality set to <b>C3PO, multilingual bot</b>. Reset the conversation for better results.');
 end;
 
+{
+  Changes the behavior of the AI model to mimic that of famous Argentine author
+  Jorge Luis Borges when interacting with the user on the active tab sheet.
+  This includes changing prompts and naming scheme.
+}
 procedure TForm1.MenuItemBorgesPersonalityClick(Sender: TObject);
 var
     ChatTabSheet: TChatTabSheet;
@@ -1068,6 +1180,10 @@ begin
     exit;
 end;
 
+{
+  Provides functionality to save the contents of active HtmlViewer either as HTML
+  or plain text format using Save As dialog box. Logs actions taken by users during saving process.
+}
 procedure TForm1.MenuItemSaveAsClick(Sender: TObject);
 var
   html,FileName,Extension: string;
@@ -1120,6 +1236,11 @@ begin
   setHtmlSize(20);
 end;
 
+{
+  Sets new font size for all HtmlViewers present within every page of PageControl1.
+  Writes zoom setting value to neurochat.ini file located at GetUserDir() path.
+  Stores current zoom level locally for future use.
+}
 procedure TForm1.setHtmlSize(size:Integer);
 var
 Chat: TChat;
@@ -1157,11 +1278,6 @@ begin
 self.AddNeuroengineChat(TMenuItem(Sender).Tag);
 end;
 
-procedure TForm1.MenuItem18Click(Sender: TObject);
-begin
-
-end;
-
 procedure TForm1.MenuItem7Click(Sender: TObject);
 begin
 if OpenDialog1.Execute then
@@ -1177,11 +1293,6 @@ begin
 Settings.ShowModal;
 end;
 
-procedure TForm1.PageControl1Changing(Sender: TObject; var AllowChange: Boolean);
-begin
-
-end;
-
 procedure TForm1.PageControl1CloseTabClicked(Sender: TObject);
 var
   ChatTabSheet: TChatTabSheet;
@@ -1194,6 +1305,11 @@ begin
 end;
 end;
 
+{
+  Sends the currently selected text in HtmlViewer component to AI associated with
+  the target Tab Sheet specified through sender Tag property. After sending the text,
+  refreshes HTML content inside the target HtmlViewer control.
+}
 procedure TForm1.SendToClick(Sender: TObject);
 var
   ChatTabSheet: TChatTabSheet;
@@ -1207,6 +1323,11 @@ self.sendTextToAI(ChatTabSheet.Chat,stext);
 ChatTabSheet.Chat.refreshHtml;
 end;
 
+{
+  Updates UI elements based on currently selected tab sheet in PageControl1.
+  Enables/disables "Send To" contextual menu item depending upon whether there's text selection available.
+  Creates dynamic submenu items under "Send To", each representing other tabs with their respective service names and personalities.
+}
 procedure TForm1.PageControl1ContextPopup(Sender: TObject; MousePos: TPoint;
   var Handled: Boolean);
 var
@@ -1251,10 +1372,7 @@ if PageControl1.ActivePage <> nil then
    end;
 end;
 
-procedure TForm1.TreeView1SelectionChanged(Sender: TObject);
-begin
 
-end;
 
 end.
 

@@ -58,6 +58,7 @@ implementation
 {$R *.lfm}
 
 { TSettings }
+// Initializes settings form components based on values saved in .neurochat.ini file.
 procedure TSettings.FormCreate(Sender: TObject);
 begin
   IniFile := TIniFile.Create(GetUserDir+'/.neurochat.ini');
@@ -84,6 +85,7 @@ begin
   end;
 end;
 
+// Writes component properties into corresponding keys inside .neurochat.ini file when BitBtnOK is clicked.
 procedure TSettings.BitBtnOKClick(Sender: TObject);
 begin
     IniFile := TIniFile.Create(GetUserDir+'/.neurochat.ini');

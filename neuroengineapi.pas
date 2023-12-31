@@ -19,6 +19,7 @@ implementation
 
 { Neuroengine API implementation}
 
+// Constructs and sends an API request to the designated LLMName endpoint while handling exceptions and returning the decoded JSON response.
 function QueryAPI(LLMName: String;APIMessage: String):UnicodeString;
 var
   URL: string;
@@ -31,7 +32,6 @@ URL := format('https://api.neuroengine.ai/%s',[LLMName]); // Neuroengine endpoin
 try
   // Create an HTTP client and set up the request
   RawByteStr := TFPHTTPClient.SimpleFormPost(URL,APIMessage);
-  //RegularStr := UTF8Encode(RawByteStr);
   RegularStr := RawByteStr;
   // Parse the regular string as JSON data
   JSONData := GetJSON(RegularStr);
@@ -44,6 +44,7 @@ end;
 
 end;
 
+// Escapes special characters within a given Unicode string by replacing them with their respective escape sequences.
 function EscapeString(const AValue: Unicodestring): Unicodestring;
 const
   ESCAPE = '\';
@@ -81,6 +82,7 @@ begin
   end;
 end;
 
+// Sends a query to a specific AI language model using provided parameters and returns the response as a raw string.
 function QueryAI(LLMName: String;Prompt: UnicodeString;temperature: Double;top_p: Double;top_k:Double;repetition_penalty:Double;max_new_len:Integer;seed:Integer;raw:Boolean): UnicodeString;
 var
   JSONToSend: Unicodestring;
