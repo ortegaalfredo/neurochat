@@ -7,7 +7,7 @@ interface
 uses
   Classes, SysUtils, Forms, Controls, Graphics, Dialogs, Menus, ComCtrls,
   ExtCtrls, fpjson, jsonparser, opensslsockets,OptionsForm,
-  stdctrls, Buttons, HtmlView,  Generics.Collections, LCLType,
+  stdctrls, Buttons, HtmlView,  lclintf,LCLType,
   request,neuroengineapi,Math,llama,chat,StrUtils,IniFiles, Types;
 
 type
@@ -24,10 +24,11 @@ type
     BitBtnSearchRight: TBitBtn;
     BitBtnSearchClose: TBitBtn;
     CheckBoxSearchCase: TCheckBox;
-    Edit1: TEdit;
     EditSearch: TEdit;
     GroupBoxSearch: TGroupBox;
+    LabelInput: TLabel;
     MainMenu1: TMainMenu;
+    Edit1: TMemo;
     MenuItem1: TMenuItem;
     MenuItem10: TMenuItem;
     MenuItem12: TMenuItem;
@@ -94,6 +95,8 @@ type
 
     // Simple Chats
     procedure AddNeuroengineChat(ServiceIndex:Integer);
+    procedure Edit1Change(Sender: TObject);
+    procedure FormShow(Sender: TObject);
     procedure LoadModelFromFile(Chat: TChat;Model:string);
     procedure AddLLamaCPPChat(Model:string);
     procedure AddChatGPTChat(Model:string);
@@ -402,6 +405,11 @@ else begin
               Chat.HtmlViewer.Align:=TAlign.alClient;
               Chat.HtmlViewer.DefFontSize:=self.currentzoom;
               NewTabSheet.Chat:=chat;
+//              Chat.HTMLViewer.ScrollBars:=ssVertical;
+              NewTabSheet.AutoSize:=false;
+              Chat.HTMLViewer.AutoSize:=false;
+
+
               chat.refreshHtml();
               Application.HandleMessage;
               end
@@ -422,23 +430,15 @@ end;
 procedure TForm1.FormCreate(Sender: TObject);
 var
   IniFile: TIniFile;
-  autosave:Boolean;
-  maxCtxLen:Integer;
-  sFileName:String;
 begin
-//self.DoubleBuffered:=True;
 self.connected:=False;
 self.KeyPreview:=True;
 {Read config file}
 IniFile := TIniFile.Create(GetUserDir+'/.neurochat.ini');
 try
-   {Read autosave setting}
-   autosave:=IniFile.ReadBool('Common','autosave',True);
    {Read zoom settings}
    currentZoom:=IniFile.ReadInteger('Common','zoom',12);
    self.setHtmlSize(currentZoom);
-   {Read maxlen settings}
-   maxCtxLen:=IniFile.ReadInteger('Common','max_new_len',1024);
    {Set zoom menu check}
    case currentZoom of
         8: begin
@@ -579,15 +579,20 @@ procedure TForm1.LabeledEdit1KeyPress(Sender: TObject; var Key: char);
 var
   Chat: TChat;
 begin
+
 if (Key = #13) then // Enter key is represented by ASCII value of 13, so check for it here.
    begin
    if (PageControl1.ActivePage=Nil) then
       exit;
+   if ((GetKeyState(VK_SHIFT) and $8000) <> 0) then {SHFT pressed}
+      exit;
    Chat:=TChatTabSheet(PageControl1.ActivePage).Chat;
    self.sendTextToAI(Chat,Edit1.Text);
-   self.Edit1.Text:='';
+   self.Edit1.Clear;
    self.refreshHtml(Chat);
+   Key := #0;
    end;
+
 end;
 
 {
@@ -730,6 +735,30 @@ if ServiceIndex>=0 then
    Log(self.neuroEngines[ServiceIndex].comment);
 end;
 
+procedure TForm1.Edit1Change(Sender: TObject);
+var
+  BMP:TBitmap;
+  LineHeight,TotalHeight:Integer;
+begin
+{Calculate memo height}
+BMP:=TBitMap.Create;
+TRY
+  BMP.Canvas.Font.Assign(Edit1.Font);
+  LineHeight:=BMP.Canvas.TextHeight('Wq');
+  TotalHeight:=Edit1.Lines.Count*LineHeight;
+  Edit1.Height:=TotalHeight;
+  self.LabelInput.Top:=Edit1.Top;
+FINALLY
+  FreeAndNIL(BMP)
+END;
+end;
+
+procedure TForm1.FormShow(Sender: TObject);
+begin
+  self.Edit1.SetFocus;
+end;
+
+
 {
   Event handler function that receives progress updates during the model loading
   phase via callback mechanism. This method calculates the percentage of completed work
@@ -737,9 +766,9 @@ end;
 }
 procedure LlamaLoadCallback(progress:single; ctx:pointer);cdecl;
 var
-  i:Integer;
   Chat: TChat;
   cap:String;
+  percent:Integer;
 begin
 if (Form1.PageControl1.ActivePage=Nil) then
    exit;
@@ -750,7 +779,8 @@ if (LoadingVar>20) then
    begin
    Chat.outhtml.Delete(Chat.outhtml.Count-1);
    cap:='Loading...'+IntToStr(Round(progress*100))+'%';
-   Chat.outhtml.Add('<table width=100% style="border: 2px solid black; color: #ffffff;"><tr><td style="width: '+IntToStr(Round(progress*100))+'%; background-color: black;" valign="top">'+cap+'</td><td style="background-color: transparent;" valign="top"></td></tr></table>');
+   percent:= Round((0.2+progress)*83);
+   Chat.outhtml.Add('<table width=100% style="border: 2px solid black; color: #ffffff;"><tr><td style="width: '+IntToStr(percent)+'%; background-color: black;" valign="top">'+cap+'</td><td style="background-color: transparent;width: '+IntToStr(100-percent)+'%;" valign="top"></td></tr></table>');
    Form1.refreshHtml(Chat);
    Application.HandleMessage;
    LoadingVar:=0;
@@ -796,7 +826,6 @@ procedure TForm1.AddLLamaCPPChat(Model:string);
 var
   NewTabSheet: TChatTabSheet;
   Chat: TChat;
-  callback: Tllama_progress_callback;
   maxContextLen: Integer;
   begin
   // Allocate new ChatStruct
@@ -1333,7 +1362,7 @@ procedure TForm1.PageControl1ContextPopup(Sender: TObject; MousePos: TPoint;
 var
   ChatTabSheet: TChatTabSheet;
   mi:TMenuItem;
-  i,j:Integer;
+  i:Integer;
   Chat: TChat;
   stext: UnicodeString;
 begin

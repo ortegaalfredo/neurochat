@@ -264,14 +264,14 @@ for q:=0 to chat.Count-1 do
     begin
     str:=chat.Strings[q];
     if StartsStr('### User: ',str) then
-        Result:=Result+'<tr style="align: center;background-color: '+color+';padding: 0px"><td><pre>'+EscapeHtml(RightStr(chat.Strings[q],length(chat.Strings[q])-10))+'</pre></td></tr>'
+        Result:=Result+'<tr style="align: center;background-color: '+color+';padding: 0px"><td style="border: none;"><pre>'+EscapeHtml(RightStr(chat.Strings[q],length(chat.Strings[q])-10))+'</pre></td></tr>'
     else
       if StartsStr('<SYSTEM>',chat.Strings[q]) then
           Result:=Result+'<tr style="color:#808080;font-size: 80%;"><td>'+chat.Strings[q]+'</td></tr>'
       else
         Result:=Result+'<tr><td style="border: none; padding: 50px;">'+md.process(chat.Strings[q])+'</td></tr>';
     end;
-Result := '<html><head><meta charset="UTF-8"></head><body style="background-color:white"><table style="width: 100%">'+Result+'</table></body></html>';
+Result := '<html><head><meta charset="UTF-8"></head><style>body{background-color:white;}table{width:100%;margin:0 auto;} td{width:100%;word-wrap:break-word;}pre{}</style><body><table>'+Result+'</table></body></html>';
 end;
 
 // Opens a hyperlink passed through the SRC parameter from the sender HTMLViewer.
