@@ -157,11 +157,12 @@ type
     connected:boolean;
     neuroEngines: array of TNeuroengineService;
     currentzoom:Integer;
+    currentChatLoading:TChat;
     procedure setHtmlSize(size:Integer);
 
   public
   const
-   version: String = '0.3-dev';
+   version: String = '0.4-dev';
   end;
 
   { Defines a custom tab sheet component that maintains a relation
@@ -770,9 +771,9 @@ var
   cap:String;
   percent:Integer;
 begin
-if (Form1.PageControl1.ActivePage=Nil) then
+if (Form1.currentChatLoading=Nil) then
    exit;
-Chat:=TChatTabSheet(Form1.PageControl1.ActivePage).Chat;
+Chat:=Form1.currentChatLoading;
 LoadingVar:=LoadingVar+1;
 {Draw loading bar}
 if (LoadingVar>20) then
@@ -798,6 +799,7 @@ begin
 SetExceptionMask(GetExceptionMask + [exOverflow,exZeroDivide,exInvalidOp]); // God dammit, llama.cpp
 llama_backend_init(False);
 Chat.Params := llama_model_default_params;
+self.currentChatLoading:=Chat;
 Chat.Params.progress_callback:=@LlamaLoadCallback;
   {GPU support}
 if Settings.CheckBoxGPU.Checked then
