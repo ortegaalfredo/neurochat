@@ -1,7 +1,7 @@
 object Form1: TForm1
-  Left = 2181
+  Left = 2696
   Height = 727
-  Top = 438
+  Top = 601
   Width = 1375
   ActiveControl = Panel1
   Caption = 'Neurochat'

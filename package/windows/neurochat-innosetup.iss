@@ -5,7 +5,7 @@
 
 [Setup]
 AppName=Neurochat
-AppVersion=0.3-dev
+AppVersion=0.5-dev
 WizardStyle=modern
 DefaultDirName={autopf}\Neurochat
 DefaultGroupName=Neurochat

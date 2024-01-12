@@ -432,21 +432,53 @@ begin
   end;
 end;
 
-{ Procedure handling request thread execution }
+{ Procedure handling request thread execution for Neuroengine.ai API}
 procedure TRequestThread.Execute;
 var
-  prompt, answer: UnicodeString;
-  p: Integer;
+  prompt, answer,TokenStr: UnicodeString;
+  p,i: Integer;
   TOP_K, TOP_P, TEMP: Single;
   max_new_len: Integer;
+  streamkey:String;
+  gettokens:Integer;
 begin
   { Retrieve configuration values for K, P, and temperature parameters }
   TOP_K := StrToIntDef(Settings.LabeledEditK.Text, 40);
   TOP_P := StrToFloatDef(Settings.LabeledEditP.Text, 0.88);
   TEMP := StrToFloatDef(Settings.LabeledEditTemperature.Text, 1.0);
   max_new_len := Self.MaxContextLen;
+  {Generate streamkey}
+  Randomize;
+  SetLength(streamkey, 32);
+  for i := 1 to 32 do
+    streamkey[i] := Chr(Ord('A') + Random(26)); // Generates a random uppercase letter
   { Call QueryAI function to obtain AI generated answer }
-  answer := QueryAI(Self.ModelName, PromptToAnswer, TEMP, TOP_P, TOP_K, 1.2, max_new_len, 0, True);
+  answer:='';
+  i:=0;
+  gettokens:=20;
+  while (True) do
+        begin
+        // Check if the context has been terminated, and if so, exit the loop
+        if self.Terminated then break;
+        TokenStr := QueryAI(Self.ModelName, PromptToAnswer, TEMP, TOP_P, TOP_K, 1.2, max_new_len, 0, True,streamkey,gettokens);
+        {Increase tokens to get so the first is fast, but the optimize for llm time}
+        gettokens:=gettokens+5;
+        if Length(TokenStr)=0 then
+           break;
+        answer := answer + TokenStr;
+        if (i=0) then
+           begin
+           answer:=Copy(answer,Length(PromptToAnswer),Length(answer));
+           end;
+        { Processing the obtained answer by removing prompts and extracting relevant content }
+        p:=PosEx('user:',LowerCase(answer));
+        if (p>0) then
+           Delete(answer,p-2,Length(answer));
+        // Update the GUI with the partial answer, which includes the answer string so far
+        self.PartialAnswer := '<b><center>(Press ESC to stop generating)</center></b>' + answer;
+        if (p>0) then break;
+        i:=i+1;
+        end;
   { Error checking and processing empty/null answers }
   if Answer = '' then
   begin
@@ -454,18 +486,8 @@ begin
     Terminate;
     Exit;
   end;
-  { Processing the obtained answer by removing prompts and extracting relevant content }
-  p:=0;
-  if (p=0) then
-     begin
-     answer:=Copy(answer,p+Length(PromptToAnswer),Length(answer));
-     answer:=Trim(answer);
-     p:=PosEx('user:',LowerCase(answer));
-     if (p>0) then
-        Delete(answer,p-2,Length(answer));
-     Response:=Trim(answer);
-     end;
-
+  Response:=Trim(answer);
+  self.PartialAnswer:='';
   Terminate;
 end;
 

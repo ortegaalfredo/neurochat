@@ -11,7 +11,7 @@ uses
 Type
   Pchar  = ^char;
 
-    function QueryAI(LLMName: String;Prompt: UnicodeString;temperature: Double;top_p: Double;top_k:Double;repetition_penalty:Double;max_new_len:Integer;seed:Integer;raw:Boolean): UnicodeString;
+    function QueryAI(LLMName: String;Prompt: UnicodeString;temperature: Double;top_p: Double;top_k:Double;repetition_penalty:Double;max_new_len:Integer;seed:Integer;raw:Boolean;streamkey:String;gettokens:Integer): UnicodeString;
     function QueryAPI(LLMName: String;APIMessage: String):UnicodeString;
 
 implementation
@@ -83,11 +83,12 @@ begin
 end;
 
 // Sends a query to a specific AI language model using provided parameters and returns the response as a raw string.
-function QueryAI(LLMName: String;Prompt: UnicodeString;temperature: Double;top_p: Double;top_k:Double;repetition_penalty:Double;max_new_len:Integer;seed:Integer;raw:Boolean): UnicodeString;
+function QueryAI(LLMName: String;Prompt: UnicodeString;temperature: Double;top_p: Double;top_k:Double;repetition_penalty:Double;max_new_len:Integer;seed:Integer;raw:Boolean;streamkey:String;gettokens:Integer): UnicodeString;
 var
   JSONToSend: Unicodestring;
   JSONData: TJSONData;
   rawString:String;
+  errorcode:Integer;
 begin
      QueryAI:='';
      if (raw=True) then
@@ -102,14 +103,18 @@ begin
                            '"repetition_penalty":%f,'+
                            '"max_new_len":%d,'+
                            '"seed":%d,'+
-                           '"raw" :'+rawString+
+                           '"raw" :'+rawString+','+
+                           '"key": "%s",'+
+                           '"gettokens": "%d"'+
                            '}'
-                           ,[Prompt,temperature,top_p,top_k,repetition_penalty,max_new_len,seed]);
+                           ,[Prompt,temperature,top_p,top_k,repetition_penalty,max_new_len,seed,streamkey,gettokens]);
      QueryAI:=QueryAPI(LLMName,JSONToSend);
      if QueryAI='' then exit;
      JSONData := GetJSON(QueryAI);
-     QueryAI:=TJSONObject(JSONData).Find('reply').AsUnicodeString;
-
+     errorcode:= TJSONObject(JSONData).Find('errorcode').AsInteger;
+     if (errorcode=0) then // No error
+        QueryAI:=TJSONObject(JSONData).Find('reply').AsUnicodeString
+     else QueryAI:='';
 end;
 
 end.

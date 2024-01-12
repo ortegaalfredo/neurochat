@@ -162,7 +162,7 @@ type
 
   public
   const
-   version: String = '0.4-dev';
+   version: String = '0.5-dev';
   end;
 
   { Defines a custom tab sheet component that maintains a relation
