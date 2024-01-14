@@ -20,13 +20,13 @@ type
   //---------------------------------------------------------------------------
 
   TForm1 = class(TForm)
+    UpBtn: TBitBtn;
     BitBtnSearchLeft: TBitBtn;
     BitBtnSearchRight: TBitBtn;
     BitBtnSearchClose: TBitBtn;
     CheckBoxSearchCase: TCheckBox;
     EditSearch: TEdit;
     GroupBoxSearch: TGroupBox;
-    LabelInput: TLabel;
     MainMenu1: TMainMenu;
     Edit1: TMemo;
     MenuItem1: TMenuItem;
@@ -37,6 +37,7 @@ type
     MenuItem24: TMenuItem;
     MenuItem25: TMenuItem;
     MenuItem26: TMenuItem;
+    MenuItem7: TMenuItem;
     MenuItemSendTo: TMenuItem;
     MenuItemHelp: TMenuItem;
     MenuItem18: TMenuItem;
@@ -82,6 +83,7 @@ type
     MenuItem8: TMenuItem;
     MenuItem9: TMenuItem;
     OpenDialog1: TOpenDialog;
+    OpenDialogText: TOpenDialog;
     PageControl1: TPageControl;
     Panel1: TPanel;
     PopupMenu1: TPopupMenu;
@@ -95,6 +97,7 @@ type
 
     // Simple Chats
     procedure AddNeuroengineChat(ServiceIndex:Integer);
+    procedure BitBtn1Click(Sender: TObject);
     procedure Edit1Change(Sender: TObject);
     procedure FormShow(Sender: TObject);
     procedure LoadModelFromFile(Chat: TChat;Model:string);
@@ -153,16 +156,18 @@ type
     procedure MenuItemResetClick(Sender: TObject);
     procedure Timer1Timer(Sender: TObject);
     procedure SendToClick(Sender: TObject);
+    procedure UpBtnClick(Sender: TObject);
   private
     connected:boolean;
     neuroEngines: array of TNeuroengineService;
     currentzoom:Integer;
     currentChatLoading:TChat;
+    procedure CreateConfigDir;
     procedure setHtmlSize(size:Integer);
 
   public
   const
-   version: String = '0.5-dev';
+   version: String = '0.6-dev';
   end;
 
   { Defines a custom tab sheet component that maintains a relation
@@ -250,9 +255,7 @@ var
   LogString:string;
 begin
 
-if self.connected=True then
- exit;
-
+Log('Configuration directory is '+ GetAppConfigDir(False));
 self.Log('Connecting to neuroengine...');
 // Prepare the JSON data to send in the POST request
 JSONToSend := '{"command": "getmodels"}'; // Replace with your JSON data
@@ -333,7 +336,7 @@ var
   chatArray: TJSONArray;
   sFileName:String;
 begin
-   sFileName := GetUserDir+'/.neurochat.history';
+   sFileName := GetAppConfigDir(False)+'/.neurochat.history';
    root := TJSONObject.Create;
    chatArray := TJSONArray.Create;
 
@@ -375,12 +378,18 @@ var
   NewTabSheet: TChatTabSheet;
 
 begin
-sFileName := GetUserDir+'/.neurochat.history';
+sFileName := GetAppConfigDir(False)+'/.neurochat.history';
 
 if (not FileExists(sFileName)) or (not autosave) then
      self.AddNeuroengineChat(-1)
 else begin
-   Fs := TFileStream.Create(sFileName, fmopenRead);
+   try
+     Fs := TFileStream.Create(sFileName, fmopenRead);
+   except
+     self.AddNeuroengineChat(-1);
+     Log('Can''t open history file at '+sFileName);
+     exit;
+   end;
    try
      P := TJSONParser.Create(Fs);
      try
@@ -389,7 +398,7 @@ else begin
           begin
           chatArray:= TJSONArray(J.FindPath('Chats'));
           for I := 0 to chatArray.Count -1 do
-              begin
+              try
               chatjs:=TJSONObject(chatArray[I]);
               chat:=TChat.FromJSON(chatjs);
               // Add a new tab sheet to the page control
@@ -413,7 +422,8 @@ else begin
 
               chat.refreshHtml();
               Application.HandleMessage;
-              end
+              except
+              end;
           end;
      finally
        P.Free;
@@ -434,8 +444,15 @@ var
 begin
 self.connected:=False;
 self.KeyPreview:=True;
+try
+   CreateConfigDir;
+   IniFile := TIniFile.Create(GetAppConfigDir(False)+'/.neurochat.ini');
+except
+  Log('Can''t create config file');
+  exit;
+end;
+
 {Read config file}
-IniFile := TIniFile.Create(GetUserDir+'/.neurochat.ini');
 try
    {Read zoom settings}
    currentZoom:=IniFile.ReadInteger('Common','zoom',12);
@@ -463,6 +480,7 @@ try
            self.MenuItemZ200.Checked:=True;
            end;
    end;
+edit1.TextHint:='Write your message here';
 finally
   IniFile.Free;
 end;
@@ -577,20 +595,12 @@ end;
   clears Edit1 field, and refreshes the current chat tab's HtmlViewer component.
 }
 procedure TForm1.LabeledEdit1KeyPress(Sender: TObject; var Key: char);
-var
-  Chat: TChat;
 begin
-
 if (Key = #13) then // Enter key is represented by ASCII value of 13, so check for it here.
    begin
-   if (PageControl1.ActivePage=Nil) then
-      exit;
    if ((GetKeyState(VK_SHIFT) and $8000) <> 0) then {SHFT pressed}
       exit;
-   Chat:=TChatTabSheet(PageControl1.ActivePage).Chat;
-   self.sendTextToAI(Chat,Edit1.Text);
-   self.Edit1.Clear;
-   self.refreshHtml(Chat);
+   self.UpBtnClick(Sender);
    Key := #0;
    end;
 
@@ -654,13 +664,13 @@ var
 begin
 if self.connected=False then
    begin
+   self.connected:=true;
    self.InitForm(settings.CheckBoxAutosave.Checked,StrToIntDef(settings.LabeledEditMaxLen.Text,1024));
    self.ConnectNeuroengine();
    if length(self.neuroEngines)>0 then
       log('Connected successfuly. Ready to chat.')
    else
-       log('Can''t connect. Check your internet connection.');
-   self.connected:=true;
+       log('Check your internet connection.');
    exit;
    end;
 for i := 0 to PageControl1.PageCount - 1 do
@@ -690,6 +700,27 @@ for i := 0 to PageControl1.PageCount - 1 do
      end;
 end;
 
+procedure TForm1.CreateConfigDir;
+var
+  DirectoryPath: string;
+begin
+  // Specify the directory path you want to create
+  DirectoryPath := GetAppConfigDir(False);
+
+  // Check if the directory exists
+  if not DirectoryExists(DirectoryPath) then
+  begin
+    // If it doesn't exist, attempt to create it and its parent directories
+    if not ForceDirectories(DirectoryPath) then
+    begin
+      // Handle the error if unable to create the directory
+      writeln('Failed to create directory: ', DirectoryPath);
+      // Handle the error appropriately for your application
+    end;
+  end;
+
+end;
+
 {Procedure adding a NeuroEngine chat tab with specified service by index}
 procedure TForm1.AddNeuroengineChat(ServiceIndex:Integer);
 var
@@ -710,7 +741,7 @@ NewTabSheet.Caption:=ServiceName;
 NewTabSheet.Tag:=ServiceIndex;
 
 // Allocate new ChatStruct
-IniFile := TIniFile.Create(GetUserDir+'/.neurochat.ini');
+IniFile := TIniFile.Create(GetAppConfigDir(False)+'/.neurochat.ini');
 try
    {Read maxlen settings}
    maxCtxLen:=IniFile.ReadInteger('Common','max_new_len',1024);
@@ -736,23 +767,65 @@ if ServiceIndex>=0 then
    Log(self.neuroEngines[ServiceIndex].comment);
 end;
 
+{Open a text file and add it to the prompt}
+procedure TForm1.BitBtn1Click(Sender: TObject);
+var
+  inputFile: Text;
+  StringList:TStringList;
+  fileLine: UnicodeString;
+begin
+if OpenDialogText.Execute then
+begin
+     system.Assign(inputFile, self.OpenDialogText.FileName);
+     system.Reset(inputFile);
+     // Read each line of the text file and append it to the fileContents string variable
+     StringList := TStringList.Create;
+     try
+       while not Eof(inputFile) do
+            begin
+            ReadLn(inputFile, fileLine);
+            StringList.Add(fileLine);
+            end;
+       system.Close(inputFile);
+       self.Edit1.Lines.AddStrings(StringList);
+     finally
+       // Free the TStringList
+       StringList.Free;
+     end;
+
+end else
+  self.Log('No file selected.');
+  exit;
+
+end;
+
 procedure TForm1.Edit1Change(Sender: TObject);
 var
   BMP:TBitmap;
   LineHeight,TotalHeight:Integer;
 begin
-{Calculate memo height}
-BMP:=TBitMap.Create;
-TRY
-  BMP.Canvas.Font.Assign(Edit1.Font);
-  LineHeight:=BMP.Canvas.TextHeight('Wq');
-  TotalHeight:=Edit1.Lines.Count*LineHeight;
-  Edit1.Height:=TotalHeight;
-  self.LabelInput.Top:=Edit1.Top;
-FINALLY
-  FreeAndNIL(BMP)
-END;
+if self.Edit1.Tag<>Edit1.Lines.Count then
+   begin
+   {Calculate memo height}
+   BMP:=TBitMap.Create;
+   TRY
+     BMP.Canvas.Font.Assign(Edit1.Font);
+     LineHeight:=BMP.Canvas.TextHeight('Wq');
+     TotalHeight:=Edit1.Lines.Count;
+     if (TotalHeight>30) then TotalHeight:=30;
+     if (TotalHeight<2) then TotalHeight:=2;
+     TotalHeight:=TotalHeight*LineHeight;
+     Edit1.Height:=TotalHeight;
+     if (Length(self.Edit1.Text)>0) then
+        self.UpBtn.Enabled:=True
+     else self.UpBtn.Enabled:=False;
+   FINALLY
+        FreeAndNIL(BMP)
+   END;
+   end;
+self.Edit1.Tag:=Edit1.Lines.Count;
 end;
+
 
 procedure TForm1.FormShow(Sender: TObject);
 begin
@@ -1269,7 +1342,7 @@ end;
 
 {
   Sets new font size for all HtmlViewers present within every page of PageControl1.
-  Writes zoom setting value to neurochat.ini file located at GetUserDir() path.
+  Writes zoom setting value to neurochat.ini file located at GetAppConfigDir(False) path.
   Stores current zoom level locally for future use.
 }
 procedure TForm1.setHtmlSize(size:Integer);
@@ -1284,7 +1357,7 @@ for i := 0 to PageControl1.PageCount - 1 do
     Chat.HtmlViewer.DefFontSize:=size;
     Chat.refreshHtml();
     end;
-IniFile := TIniFile.Create(GetUserDir+'/.neurochat.ini');
+IniFile := TIniFile.Create(GetAppConfigDir(False)+'/.neurochat.ini');
 try
    {Savezoom settings}
    IniFile.WriteInteger('Common','zoom',size);
@@ -1352,6 +1425,18 @@ PageControl1.ActivePageIndex:=TMenuItem(Sender).Tag;
 ChatTabSheet:=TChatTabSheet(PageControl1.ActivePage);
 self.sendTextToAI(ChatTabSheet.Chat,stext);
 ChatTabSheet.Chat.refreshHtml;
+end;
+
+procedure TForm1.UpBtnClick(Sender: TObject);
+var
+  Chat: TChat;
+begin
+if (PageControl1.ActivePage=Nil) then
+   exit;
+Chat:=TChatTabSheet(PageControl1.ActivePage).Chat;
+self.sendTextToAI(Chat,Edit1.Text);
+self.Edit1.Clear;
+self.refreshHtml(Chat);
 end;
 
 {
