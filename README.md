@@ -1,7 +1,7 @@
 # Neurochat: GUI for LLMs
 
 ## Description
-Neurochat is a 100% native front-end application designed to facilitate interaction with various AI services, including the Neuroengine service, OpenAI's ChatGPT API, and local AI models using the [Llama.cpp](https://github.com/ggerganov/llama.cpp) library. Its primary function is to offer a cohesive user experience while managing these diverse AI systems through one simple and convenient GUI. Installation provided for [Linux](https://github.com/ortegaalfredo/neurochat/releases/download/0.3-dev/neurochat-0.3-amd64-ubuntu.deb), [Windows](https://github.com/ortegaalfredo/neurochat/releases/download/0.3-dev/neurochat-0.3-setup-win64.exe) and [MacOS](https://github.com/ortegaalfredo/neurochat/releases/download/0.3-dev/neurochat-0.3-setup-macOS-aarm64.pkg) support (MacOS still quite buggy).
+Neurochat is a 100% native front-end application designed to facilitate interaction with various AI services, including the Neuroengine service, OpenAI's ChatGPT API, and local AI models using the [Llama.cpp](https://github.com/ggerganov/llama.cpp) library. Its primary function is to offer a cohesive user experience while managing these diverse AI systems through one simple and convenient GUI. Installation provided for [Linux](https://github.com/ortegaalfredo/neurochat/releases/download/0.6-dev/neurochat-0.6-amd64-ubuntu.deb), [Windows](https://github.com/ortegaalfredo/neurochat/releases/download/0.6-dev/neurochat-0.6-setup-win64.exe) and [MacOS](https://github.com/ortegaalfredo/neurochat/releases/download/0.3-dev/neurochat-0.3-setup-macOS-aarm64.pkg) support (MacOS still quite buggy).
 
 ![Neurochat demo](https://raw.githubusercontent.com/ortegaalfredo/neurochat/main/neurochat-demo.gif)
 
